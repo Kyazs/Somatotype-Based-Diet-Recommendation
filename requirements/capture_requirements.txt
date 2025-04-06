@@ -1,1 +1,3 @@
 customtkinter
+mediapipe
+opencv-python

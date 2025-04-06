@@ -1,0 +1,24 @@
+
+Measurement          |Basic-Input     |Predicted-Input |3D Avatar-Output
+
+weight_kg            |60.0            |60.0            |70.6   
+stature_cm           |158.0           |158.0           |157.9  
+neck_base_girth      |0.0             |40.3            |41.3   
+chest_girth          |108.3           |108.3           |107.4  
+waist_girth          |91.6            |91.6            |91.4   
+hips_buttock_girth   |97.8            |97.8            |96.9   
+shoulder_girth       |119.6           |119.6           |118.9  
+thigh_girth          |61.0            |61.0            |59.9   
+thigh_low_girth      |0.0             |35.8            |36.0   
+calf_girth           |0.0             |34.3            |34.0   
+ankle_girth          |0.0             |19.7            |19.5   
+forearm_girth        |0.0             |28.1            |27.7   
+wrist_girth          |0.0             |15.4            |15.2   
+shoulder_length      |0.0             |15.3            |15.2   
+sleeveoutseam_length |53.3            |53.3            |52.8   
+forearm_length       |0.0             |23.9            |23.8   
+crotchheight_length  |75.6            |75.6            |75.4   
+waistback_length     |43.9            |43.9            |43.4   
+thigh_length         |0.0             |36.9            |36.9   
+chest_depth_length   |0.0             |25.9            |25.8   
+head_girth           |0.0             |55.3            |55.2   
