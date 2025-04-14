@@ -10,7 +10,9 @@ import customtkinter as ctk
 
 from gui.landing_page import LandingPage
 from gui.input_page import InputPage
-
+from gui.capture_page import CapturePage  
+from gui.processing_page import ProcessingPage  # Updated import name
+from gui.diet_page import DietPage  # Import the diet page
 
 class App(ctk.CTk):
     def __init__(self):
@@ -24,7 +26,7 @@ class App(ctk.CTk):
         self.grid_columnconfigure(0, weight=1)
 
         # Initialize frames
-        for F in (LandingPage, InputPage):
+        for F in (LandingPage, InputPage, CapturePage, ProcessingPage, DietPage):  # Add all pages
             frame_container = ctk.CTkFrame(self)
             frame_container.grid(row=0, column=0, sticky="nsew") 
             frame_container.grid_remove()

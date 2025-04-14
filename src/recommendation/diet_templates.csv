@@ -1,0 +1,7 @@
+somatotype,goal,protein_g,carbs_g,fats_g,foods
+ectomorph,weight_gain,150,300,80,"Oats, Peanut Butter, Grilled Chicken, Rice, Protein Shake, Salmon, Sweet Potatoes"
+ectomorph,weight_loss,130,180,60,"Boiled Eggs, Tuna, Salad Greens, Quinoa, Vegetables, Cottage Cheese"
+mesomorph,weight_gain,140,250,70,"Greek Yogurt, Chicken Breast, Pasta, Turkey, Whole Grain Bread, Beef, Brown Rice"
+mesomorph,weight_loss,130,180,60,"Omelette, Grilled Fish, Salad, Lentils, Tofu, Broccoli"
+endomorph,weight_gain,140,200,80,"Scrambled Eggs, Avocado, Chicken Thighs, Broccoli, Greek Yogurt, Nuts, Tuna"
+endomorph,weight_loss,150,120,50,"Boiled Chicken, Steamed Vegetables, Protein Smoothie, Grilled Tofu, Salad"

@@ -194,9 +194,12 @@ class Recommender:
 
     def display_recommendations(self):
         """
-        Display the recommended macronutrient targets and suggested foods.
+        Display the recommended macronutrient targets and suggested foods,
+        and save the output to a CSV file.
         """
         macros, foods = self.calculate_macros()
+        output_file = os.path.join(OUTPUT_FILES_DIR, "output_recommendation.csv")
+
         if macros and foods:
             print("Recommended Macronutrient Targets:")
             for k, v in macros.items():
@@ -205,10 +208,25 @@ class Recommender:
             print("\nSuggested Foods:")
             for food in foods:
                 print(f" - {food}")
+
+            # Save recommendations to a CSV file
+            with open(output_file, mode="w", newline="") as file:
+                writer = csv.writer(file)
+                writer.writerow(["Macronutrient", "Value"])
+                for k, v in macros.items():
+                    writer.writerow([k, v])
+                writer.writerow([])
+                writer.writerow(["Suggested Foods"])
+                for food in foods:
+                    writer.writerow([food])
         else:
             print("No recommendation found for the given somatotype and goal.")
+            with open(output_file, mode="w", newline="") as file:
+                writer = csv.writer(file)
+                writer.writerow(["Error"])
+                writer.writerow(["No recommendation found for the given somatotype and goal."])
 
-
+    
 # -----------------------------
 # Example Usage
 # -----------------------------

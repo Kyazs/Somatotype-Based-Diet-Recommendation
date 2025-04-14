@@ -304,7 +304,7 @@ def extract_silhouette(input_images):
     ## Adapted from: https://news.machinelearning.sg/posts/beautiful_profile_pics_remove_background_image_with_deeplabv3/
     # Load torchvision model
     deeplab_model = torch.hub.load(
-        "pytorch/vision:v0.10.0", "deeplabv3_resnet101", weights="DEFAULT"
+        "pytorch/vision:v0.10.0", "deeplabv3_resnet101", weights="DEFAULT" 
     )
     deeplab_model.eval()
 

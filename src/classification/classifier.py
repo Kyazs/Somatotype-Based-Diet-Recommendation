@@ -3,10 +3,10 @@ import pandas as pd
 import os
 import sys
 
-PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../"))
+PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.append(PROJECT_DIR)
 
-from utils.utils import OUTPUT_FILES_DIR
+from src.utils.utils import OUTPUT_FILES_DIR  # Correct import path
 
 
 def load_csv_data(file_path):
@@ -37,7 +37,6 @@ def load_csv_data(file_path):
 
     return df
 
-
 def get_measurement(df, name):
     """
     Retrieve a specific measurement value by name.
@@ -62,7 +61,6 @@ def get_measurement(df, name):
     if matching_rows.empty:
         raise ValueError(f"Measurement '{name}' not found in the DataFrame.")
     return matching_rows.values[0]
-
 
 def calculate_somatotype(
     weight, stature, chest, waist, hips, shoulder, thigh, calf, neck
