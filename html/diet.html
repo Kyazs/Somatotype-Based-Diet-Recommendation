@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diet Recommendations - Somatotype AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <!-- Chart.js for pie chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .diet-card {
+            transition: all 0.3s ease;
+        }
+        
+        .diet-card:hover {
+            transform: translateY(-4px);
+        }
+        
+        .meal-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-out, opacity 0.3s ease;
+            opacity: 0;
+        }
+        
+        .meal-details.active {
+            max-height: 1000px;
+            opacity: 1;
+        }
+        
+        .somatotype-chart {
+            position: relative;
+            width: 100%;
+            max-width: 350px;
+            margin: 0 auto;
+        }
+        
+        .somatotype-indicator {
+            position: absolute;
+            height: 12px;
+            width: 12px;
+            background-color: #3b82f6;
+            border: 2px solid white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .somatotype-indicator:hover {
+            transform: translate(-50%, -50%) scale(1.5);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5);
+        }
+        
+        /* Triangle with the three somatotype corners */
+        .somatotype-triangle {
+            position: relative;
+            width: 100%;
+            padding-bottom: 90%;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 90"><path d="M50,0 L0,86.6 L100,86.6 Z" fill="none" stroke="%23e5e7eb" stroke-width="1" /><circle cx="50" cy="28.9" r="3" fill="%2310b981" /><text x="50" y="20" text-anchor="middle" font-size="6" fill="%23374151">Ectomorph</text><circle cx="16.7" cy="66.6" r="3" fill="%23f59e0b" /><text x="16.7" y="76.6" text-anchor="middle" font-size="6" fill="%23374151">Endomorph</text><circle cx="83.3" cy="66.6" r="3" fill="%233b82f6" /><text x="83.3" y="76.6" text-anchor="middle" font-size="6" fill="%23374151">Mesomorph</text></svg>');
+        }
+        
+        /* Progress bar animation */
+        @keyframes fillProgress {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        
+        .progress-fill {
+            animation: fillProgress 1s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 antialiased">
+    
+    <main class="py-8 px-4 md:py-12">
+        <div class="container mx-auto max-w-6xl">
+            <!-- Page Title -->
+            <div class="text-center mb-8" data-aos="fade-up">
+                <h1 class="text-3xl md:text-4xl font-bold mb-2">Your Personalized Diet Plan</h1>
+                <p class="text-gray-600 max-w-2xl mx-auto">
+                    Based on your somatotype analysis, we've created a nutrition plan tailored specifically to your body's needs.
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- User Information and Somatotype -->
+                <div class="lg:col-span-1" data-aos="fade-right">
+                    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                        <h2 class="text-xl font-bold mb-4 pb-2 border-b border-gray-100">Your Profile</h2>
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Name:</span>
+                                <span class="font-medium">John Doe</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Age:</span>
+                                <span class="font-medium">32 years</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Gender:</span>
+                                <span class="font-medium">Male</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Height:</span>
+                                <span class="font-medium">178 cm</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Weight:</span>
+                                <span class="font-medium">75 kg</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Activity Level:</span>
+                                <span class="font-medium">Moderately Active</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Goal:</span>
+                                <span class="font-medium text-blue-600">Gain Weight</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Dietary Restrictions:</span>
+                                <span class="font-medium">None</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Somatotype Analysis -->
+                    <div class="bg-white rounded-xl shadow-lg p-6 mb-6" data-aos="fade-right" data-aos-delay="100">
+                        <h2 class="text-xl font-bold mb-4">Your Somatotype</h2>
+                        
+                        <div class="text-center mb-6">
+                            <div class="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-full font-medium">
+                                <span class="mr-2">Meso-Ectomorph</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                        </div>
+                        
+                        <!-- Somatotype Triangle -->
+                        <div class="somatotype-triangle relative mb-4">
+                            <!-- Position indicator at 60% mesomorph, 30% ectomorph, 10% endomorph -->
+                            <div class="somatotype-indicator" style="top: 44%; left: 65%;" title="Your somatotype: 30% Ectomorph, 60% Mesomorph, 10% Endomorph"></div>
+                        </div>
+                        
+                        <!-- Somatotype Breakdown -->
+                        <div class="grid grid-cols-3 gap-2 mb-4">
+                            <div class="text-center">
+                                <div class="text-sm text-gray-500">Ectomorph</div>
+                                <div class="h-1.5 bg-gray-200 rounded-full mt-1 overflow-hidden">
+                                    <div class="h-full bg-green-500 progress-fill" style="width: 30%"></div>
+                                </div>
+                                <div class="text-sm font-medium mt-1">30%</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-sm text-gray-500">Mesomorph</div>
+                                <div class="h-1.5 bg-gray-200 rounded-full mt-1 overflow-hidden">
+                                    <div class="h-full bg-blue-500 progress-fill" style="width: 60%"></div>
+                                </div>
+                                <div class="text-sm font-medium mt-1">60%</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-sm text-gray-500">Endomorph</div>
+                                <div class="h-1.5 bg-gray-200 rounded-full mt-1 overflow-hidden">
+                                    <div class="h-full bg-yellow-500 progress-fill" style="width: 10%"></div>
+                                </div>
+                                <div class="text-sm font-medium mt-1">10%</div>
+                            </div>
+                        </div>
+                        
+                        <p class="text-gray-600 text-sm">
+                            Your body type is primarily mesomorphic with ectomorphic tendencies. This means you have an athletic build with good muscle development potential and a naturally lower body fat percentage.
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Macro Recommendations and Diet Plans -->
+                <div class="lg:col-span-2">
+                    <!-- Macro Nutrients and Chart -->
+                    <div class="bg-white rounded-xl shadow-lg p-6 mb-6" data-aos="fade-left">
+                        <h2 class="text-xl font-bold mb-4">Recommended Macro Nutrients</h2>
+                        
+                        <div class="flex flex-col md:flex-row">
+                            <div class="w-full md:w-1/2 mb-6 md:mb-0">
+                                <!-- Pie Chart -->
+                                <div class="chart-container" style="position: relative; height:280px; width:100%">
+                                    <canvas id="macroChart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <div class="w-full md:w-1/2 pl-0 md:pl-6">
+                                <div class="mb-5">
+                                    <h3 class="text-lg font-semibold mb-2">Daily Calorie Target</h3>
+                                    <div class="text-3xl font-bold text-blue-600">2,450 <span class="text-base font-normal text-gray-500">kcal</span></div>
+                                </div>
+                                
+                                <div class="space-y-4">
+                                    <div>
+                                        <div class="flex justify-between mb-1">
+                                            <span class="text-gray-700">Protein (30%)</span>
+                                            <span class="font-medium">184g</span>
+                                        </div>
+                                        <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div class="h-full bg-green-500" style="width: 30%"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <div class="flex justify-between mb-1">
+                                            <span class="text-gray-700">Carbohydrates (45%)</span>
+                                            <span class="font-medium">276g</span>
+                                        </div>
+                                        <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div class="h-full bg-yellow-500" style="width: 45%"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <div class="flex justify-between mb-1">
+                                            <span class="text-gray-700">Fats (25%)</span>
+                                            <span class="font-medium">68g</span>
+                                        </div>
+                                        <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div class="h-full bg-blue-500" style="width: 25%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Recommended Diet Plans -->
+                    <div data-aos="fade-up">
+                        <h2 class="text-2xl font-bold mb-4">Your Food Recommendations</h2>
+                        <p class="text-gray-600 mb-6">
+                            Based on your goal to <span class="font-medium text-blue-600">gain weight</span>, we've selected these food options that will help you achieve optimal nutrition while supporting your mesomorphic body type.
+                        </p>
+                        
+                        <!-- Food Category 1: Protein Sources -->
+                        <div class="bg-white rounded-xl shadow-lg mb-6 overflow-hidden diet-card" data-aos="fade-up">
+                            <!-- Category Header -->
+                            <div class="p-6 border-b border-gray-100">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <h3 class="text-xl font-bold mb-2">Protein Sources</h3>
+                                        <p class="text-gray-600">Essential for muscle recovery and growth</p>
+                                    </div>
+                                    <button class="toggle-meal-details bg-blue-100 hover:bg-blue-200 text-blue-800 font-medium py-2 px-4 rounded-lg flex items-center transition duration-200">
+                                        <span>View Options</span>
+                                        <svg class="h-5 w-5 ml-1 transform transition-transform" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                
+                                <!-- Macro summary for this food category -->
+                                <div class="mt-4 bg-blue-50 p-3 rounded-lg">
+                                    <p class="text-sm text-blue-800">
+                                        Aim for <span class="font-bold">180-200g</span> of protein daily from a variety of sources to support your muscle development goals.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <!-- Expandable Foods Section -->
+                            <div class="meal-details bg-gray-50">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
+                                    <!-- Food Item 1 -->
+                                    <div class="bg-white rounded-lg shadow p-4">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h4 class="font-bold text-blue-800">Chicken Breast</h4>
+                                            <span class="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">Highly Recommended</span>
+                                        </div>
+                                        <div class="mb-3 pb-3 border-b border-gray-100">
+                                            <p class="text-sm text-gray-600 mb-2">Excellent lean protein source that's versatile for many dishes</p>
+                                            <div class="grid grid-cols-3 gap-1 text-xs">
+                                                <div class="bg-gray-50 p-1 rounded text-center">
+                                                    <span class="block text-gray-500">Protein</span>
+                                                    <span class="font-medium">31g</span>
+                                                    <span class="text-gray-400 text-[10px]">per 100g</span>
+                                                </div>
+                                                <div class="bg-gray-50 p-1 rounded text-center">
+                                                    <span class="block text-gray-500">Carbs</span>
+                                                    <span class="font-medium">0g</span>
+                                                    <span class="text-gray-400 text-[10px]">per 100g</span>
+                                                </div>
+                                                <div class="bg-gray-50 p-1 rounded text-center">
+                                                    <span class="block text-gray-500">Fats</span>
+                                                    <span class="font-medium">3.6g</span>
+                                                    <span class="text-gray-400 text-[10px]">per 100g</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="text-xs text-gray-500">
+                                            Serving suggestion: 150-200g with your main meals
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Food Item 2 -->
+                                    <div class="bg-white rounded-lg shadow p-4">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h4 class="font-bold text-blue-800">Greek Yogurt</h4>
+                                            <span class="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">Daily</span>
+                                        </div>
+                                        <div class="mb-3 pb-3 border-b border-gray-100">
+                                            <p class="text-sm text-gray-600 mb-2">Rich in protein and probiotics for gut health</p>
+                                            <div class="grid grid-cols-3 gap-1 text-xs">
+                                                <div class="bg-gray-50 p-1 rounded text-center">
+                                                    <span class="block text-gray-500">Protein</span>
+                                                    <span class="font-medium">10g</span>
+                                                    <span class="text-gray-400 text-[10px]">per 100g</span>
+                                                </div>
+                                                <div class="bg-gray-50 p-1 rounded text-center">
+                                                    <span class="block text-gray-500">Carbs</span>
+                                                    <span class="font-medium">3.6g</span>
+                                                    <span class="text-gray-400 text-[10px]">per 100g</span>
+                                                </div>
+                                                <div class="bg-gray-50 p-1 rounded text-center">
+                                                    <span class="block text-gray-500">Fats</span>
+                                                    <span class="font-medium">0.4g</span>
+                                                    <span class="text-gray-400 text-[10px]">per 100g</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="text-xs text-gray-500">
+                                            Serving suggestion: 200g with berries and honey as a snack
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Food Item 3 -->
+                                    <div class="bg-white rounded-lg shadow p-4">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h4 class="font-bold text-blue-800">Salmon</h4>
+                                            <span class="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">2-3x Weekly</span>
+                                        </div>
+                                        <div class="mb-3 pb-3 border-b border-gray-100">
+                                            <p class="text-sm text-gray-600 mb-2">Great protein source with healthy omega-3 fatty acids</p>
+                                            <div class="grid grid-cols-3 gap-1 text-xs">
+                                                <div class="bg-gray-50 p-1 rounded text-center">
+                                                    <span class="block text-gray-500">Protein</span>
+                                                    <span class="font-medium">25g</span>
+                                                    <span class="text-gray-400 text-[10px]">per 100g</span>
+                                                </div>
+                                                <div class="bg-gray-50 p-1 rounded text-center">
+                                                    <span class="block text-gray-500">Carbs</span>
+                                                    <span class="font-medium">0g</span>
+                                                    <span class="text-gray-400 text-[10px]">per 100g</span>
+                                                </div>
+                                                <div class="bg-gray-50 p-1 rounded text-center">
+                                                    <span class="block text-gray-500">Fats</span>
+                                                    <span class="font-medium">13g</span>
+                                                    <span class="text-gray-400 text-[10px]">per 100g</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="text-xs text-gray-500">
+                                            Serving suggestion: 150g fillet for dinner with vegetables
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- More food options -->
+                                <div class="px-6 pb-6">
+                                    <h4 class="font-medium text-gray-700 mb-3">Other Recommended Protein Sources:</h4>
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        <div class="bg-white rounded p-3 shadow-sm text-center">
+                                            <span class="block font-medium text-blue-800">Eggs</span>
+                                            <span class="text-xs text-gray-500">6-8g protein per egg</span>
+                                        </div>
+                                        <div class="bg-white rounded p-3 shadow-sm text-center">
+                                            <span class="block font-medium text-blue-800">Lean Beef</span>
+                                            <span class="text-xs text-gray-500">26g protein per 100g</span>
+                                        </div>
+                                        <div class="bg-white rounded p-3 shadow-sm text-center">
+                                            <span class="block font-medium text-blue-800">Tofu</span>
+                                            <span class="text-xs text-gray-500">8g protein per 100g</span>
+                                        </div>
+                                        <div class="bg-white rounded p-3 shadow-sm text-center">
+                                            <span class="block font-medium text-blue-800">Whey Protein</span>
+                                            <span class="text-xs text-gray-500">24g protein per scoop</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Food Category 2: Complex Carbohydrates -->
+                        <div class="bg-white rounded-xl shadow-lg mb-6 overflow-hidden diet-card" data-aos="fade-up" data-aos-delay="100">
+                            <!-- Category Header -->
+                            <div class="p-6 border-b border-gray-100">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <h3 class="text-xl font-bold mb-2">Complex Carbohydrates</h3>
+                                        <p class="text-gray-600">Energy sources for training and recovery</p>
+                                    </div>
+                                    <button class="toggle-meal-details bg-blue-100 hover:bg-blue-200 text-blue-800 font-medium py-2 px-4 rounded-lg flex items-center transition duration-200">
+                                        <span>View Options</span>
+                                        <svg class="h-5 w-5 ml-1 transform transition-transform" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                
+                                <!-- Info for this category -->
+                                <div class="mt-4 bg-yellow-50 p-3 rounded-lg">
+                                    <p class="text-sm text-yellow-800">
+                                        Aim for <span class="font-bold">270-290g</span> of complex carbs daily to fuel your workouts and support weight gain.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <!-- Expandable Foods Section - similar structure as above -->
+                            <div class="meal-details bg-gray-50">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
+                                    <!-- Sample items for carbs -->
+                                    <div class="bg-white rounded-lg shadow p-4">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h4 class="font-bold text-blue-800">Brown Rice</h4>
+                                            <span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2 py-1 rounded-full">Staple Food</span>
+                                        </div>
+                                        <div class="mb-3 pb-3 border-b border-gray-100">
+                                            <p class="text-sm text-gray-600 mb-2">Whole grain with fiber and essential nutrients</p>
+                                            <div class="grid grid-cols-3 gap-1 text-xs">
+                                                <div class="bg-gray-50 p-1 rounded text-center">
+                                                    <span class="block text-gray-500">Protein</span>
+                                                    <span class="font-medium">2.6g</span>
+                                                    <span class="text-gray-400 text-[10px]">per 100g</span>
+                                                </div>
+                                                <div class="bg-gray-50 p-1 rounded text-center">
+                                                    <span class="block text-gray-500">Carbs</span>
+                                                    <span class="font-medium">23g</span>
+                                                    <span class="text-gray-400 text-[10px]">per 100g</span>
+                                                </div>
+                                                <div class="bg-gray-50 p-1 rounded text-center">
+                                                    <span class="block text-gray-500">Fats</span>
+                                                    <span class="font-medium">0.9g</span>
+                                                    <span class="text-gray-400 text-[10px]">per 100g</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- More carb options here -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Food Category 3: Healthy Fats -->
+                        <div class="bg-white rounded-xl shadow-lg mb-6 overflow-hidden diet-card" data-aos="fade-up" data-aos-delay="200">
+                            <!-- Category Header -->
+                            <div class="p-6 border-b border-gray-100">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <h3 class="text-xl font-bold mb-2">Healthy Fats</h3>
+                                        <p class="text-gray-600">Essential for hormone production and calorie density</p>
+                                    </div>
+                                    <button class="toggle-meal-details bg-blue-100 hover:bg-blue-200 text-blue-800 font-medium py-2 px-4 rounded-lg flex items-center transition duration-200">
+                                        <span>View Options</span>
+                                        <svg class="h-5 w-5 ml-1 transform transition-transform" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                
+                                <div class="mt-4 bg-blue-50 p-3 rounded-lg">
+                                    <p class="text-sm text-blue-800">
+                                        Include <span class="font-bold">65-75g</span> of healthy fats daily to support your weight gain goals in a healthy way.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <!-- Expandable healthy fats section -->
+                            <div class="meal-details bg-gray-50">
+                                <!-- Similar structure as above categories -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+                
+            <!-- Disclaimer Section -->
+            <div class="bg-blue-50 rounded-xl p-6 mt-8 max-w-4xl mx-auto" data-aos="fade-up" data-aos-delay="300">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-lg font-medium text-blue-800">Important Note</h3>
+                        <div class="mt-2 text-sm text-blue-700">
+                            <p>
+                                This diet plan is generated based on your somatotype analysis and provided information. It should be used as a general guideline. Always consult with a healthcare professional or registered dietitian before making significant changes to your diet, especially if you have medical conditions or specific dietary requirements.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        // Initialize AOS
+        AOS.init({
+            duration: 800,
+            once: true,
+        });
+
+        // Pie Chart for Macros
+        const ctx = document.getElementById('macroChart').getContext('2d');
+        const macroChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['Protein (30%)', 'Carbohydrates (45%)', 'Fats (25%)'],
+                datasets: [{
+                    data: [30, 45, 25],
+                    backgroundColor: [
+                        '#10b981', // Green for protein
+                        '#f59e0b', // Yellow for carbs
+                        '#3b82f6'  // Blue for fats
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            font: {
+                                family: 'Inter',
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw;
+                                const total = context.chart.getDatasetMeta(0).total;
+                                const percentage = Math.round(value / total * 100) + '%';
+                                return percentage;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Toggle meal details
+        document.querySelectorAll('.toggle-meal-details').forEach(button => {
+            button.addEventListener('click', function() {
+                const mealDetails = this.closest('.diet-card').querySelector('.meal-details');
+                const icon = this.querySelector('svg');
+                
+                if (mealDetails.classList.contains('active')) {
+                    mealDetails.classList.remove('active');
+                    icon.classList.remove('rotate-180');
+                } else {
+                    mealDetails.classList.add('active');
+                    icon.classList.add('rotate-180');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

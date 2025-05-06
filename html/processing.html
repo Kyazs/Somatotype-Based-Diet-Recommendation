@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processing Data - Somatotype AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .processing-step {
+            transition: all 0.4s ease-out;
+        }
+        .processing-step.active .step-icon {
+            background-color: #dbeafe;
+            border-color: #3b82f6;
+        }
+        .processing-step.active .step-label {
+            color: #1e40af;
+            font-weight: 600;
+        }
+        .processing-step.completed .step-icon {
+            background-color: #dcfce7;
+            border-color: #10b981;
+            color: #10b981;
+        }
+        .processing-step.completed .step-label {
+            color: #10b981;
+        }
+        .progress-line {
+            position: relative;
+            height: 3px; /* Fixed height */
+            background-color: #e5e7eb;
+            transition: all 0.5s ease;
+        }
+        .progress-line::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%; /* Will inherit the parent's 3px height */
+            width: 0;
+            background-color: #3b82f6;
+            transition: width 0.5s ease-out; /* Only transition the width property */
+        }
+        .progress-line.p-20::after { width: 20%; }
+        .progress-line.p-40::after { width: 40%; }
+        .progress-line.p-60::after { width: 60%; }
+        .progress-line.p-80::after { width: 80%; }
+        .progress-line.p-100::after { width: 100%; background-color: #10b981; }
+        
+        .pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .card-animation {
+            transition: all 0.5s ease-out;
+        }
+        
+        .card-animation.active {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .card-animation.inactive {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 antialiased">
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <main class="w-full max-w-7xl grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="w-full">
+                <div class="text-center mb-4">
+                    <a href="./diet.html">a</a>
+                    <h1 class="text-2xl font-bold text-gray-900 mb-1">Analyzing Your Data</h1>
+                    <p class="text-gray-600 text-sm">Our AI is processing your information to create personalized recommendations</p>
+                </div>
+                
+                <!-- Processing Progress -->
+                <div class="bg-white rounded-xl shadow-lg p-6 max-h-[70vh] overflow-y-auto">
+                    <!-- Progress Indicator -->
+                    <div class="w-full mb-6 sticky top-0 bg-white pt-1 z-10">
+                        <div class="progress-line p-20" id="progress-line"></div>
+                    </div>
+                    
+                    <!-- Processing Steps -->
+                    <div class="space-y-4">
+                        <!-- Step 1: Fetching User Input -->
+                        <div class="processing-step active flex items-center" id="step-1">
+                            <div class="step-icon w-12 h-12 rounded-full border-2 flex items-center justify-center mr-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+                                </svg>
+                            </div>
+                            <div class="flex-grow">
+                                <div class="flex items-center justify-between">
+                                    <span class="step-label text-blue-900 font-medium">Fetching User Input</span>
+                                    <span class="text-blue-600" id="step-1-status">In Progress</span>
+                                </div>
+                                <div class="mt-1 text-sm text-gray-500" id="step-1-details">
+                                    Loading your personal information...
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 2: Processing Image Capture -->
+                        <div class="processing-step flex items-center" id="step-2">
+                            <div class="step-icon w-12 h-12 rounded-full border-2 border-gray-200 bg-gray-50 flex items-center justify-center mr-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </div>
+                            <div class="flex-grow">
+                                <div class="flex items-center justify-between">
+                                    <span class="step-label text-gray-600">Processing Image Capture</span>
+                                    <span class="text-gray-400" id="step-2-status">Waiting</span>
+                                </div>
+                                <div class="mt-1 text-sm text-gray-400" id="step-2-details">
+                                    Your images will be analyzed for body proportions
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 3: Extracting Measurements -->
+                        <div class="processing-step flex items-center" id="step-3">
+                            <div class="step-icon w-12 h-12 rounded-full border-2 border-gray-200 bg-gray-50 flex items-center justify-center mr-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            </div>
+                            <div class="flex-grow">
+                                <div class="flex items-center justify-between">
+                                    <span class="step-label text-gray-600">Extracting Measurements</span>
+                                    <span class="text-gray-400" id="step-3-status">Waiting</span>
+                                </div>
+                                <div class="mt-1 text-sm text-gray-400" id="step-3-details">
+                                    Computer vision will extract your key body metrics
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 4: Somatotype Classification -->
+                        <div class="processing-step flex items-center" id="step-4">
+                            <div class="step-icon w-12 h-12 rounded-full border-2 border-gray-200 bg-gray-50 flex items-center justify-center mr-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                </svg>
+                            </div>
+                            <div class="flex-grow">
+                                <div class="flex items-center justify-between">
+                                    <span class="step-label text-gray-600">Somatotype Classification</span>
+                                    <span class="text-gray-400" id="step-4-status">Waiting</span>
+                                </div>
+                                <div class="mt-1 text-sm text-gray-400" id="step-4-details">
+                                    Determining your unique body type
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 5: Generating Diet Recommendation -->
+                        <div class="processing-step flex items-center" id="step-5">
+                            <div class="step-icon w-12 h-12 rounded-full border-2 border-gray-200 bg-gray-50 flex items-center justify-center mr-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <div class="flex-grow">
+                                <div class="flex items-center justify-between">
+                                    <span class="step-label text-gray-600">Generating Diet Recommendation</span>
+                                    <span class="text-gray-400" id="step-5-status">Waiting</span>
+                                </div>
+                                <div class="mt-1 text-sm text-gray-400" id="step-5-details">
+                                    Creating your personalized nutrition plan
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="w-full">
+                <!-- Current Processing Card -->
+                <div id="processing-card" class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500 relative overflow-hidden card-animation active max-h-[70vh] overflow-y-auto">
+                    <div class="flex items-start">
+                        <div class="mr-4">
+                            <div class="bg-blue-100 rounded-full p-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-600 spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-lg mb-2" id="card-title">Processing User Input</h3>
+                            <p class="text-gray-600" id="card-description">
+                                We're collecting and preparing your personal details to inform our analysis.
+                            </p>
+                            <div class="mt-3">
+                                <div class="inline-block bg-blue-50 px-2 py-1 rounded text-sm text-blue-800" id="card-progress">
+                                    <span class="pulse">●</span> Working on it...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Visual elements for each step - only one will be shown at a time -->
+                    <div id="visual-user-input" class="mt-4 border-t border-gray-100 pt-4">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-gray-50 p-2 rounded">
+                                <div class="text-xs text-gray-500">Name</div>
+                                <div class="h-4 bg-blue-100 rounded pulse w-3/4 mt-1"></div>
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded">
+                                <div class="text-xs text-gray-500">Gender</div>
+                                <div class="h-4 bg-blue-100 rounded pulse w-1/2 mt-1"></div>
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded">
+                                <div class="text-xs text-gray-500">Age</div>
+                                <div class="h-4 bg-blue-100 rounded pulse w-1/4 mt-1"></div>
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded">
+                                <div class="text-xs text-gray-500">Activity Level</div>
+                                <div class="h-4 bg-blue-100 rounded pulse w-2/3 mt-1"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="visual-image-processing" class="mt-4 border-t border-gray-100 pt-4 hidden">
+                        <div class="flex justify-center">
+                            <div class="relative w-48 h-64 bg-gray-200 rounded-lg overflow-hidden max-h-[40vh]">
+                                <div class="absolute inset-0 bg-gradient-to-b from-blue-100 to-blue-200 opacity-60 pulse"></div>
+                                <div class="absolute inset-0 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-blue-500 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                                <div class="absolute inset-0">
+                                    <svg class="w-full h-full" viewBox="0 0 100 140" xmlns="http://www.w3.org/2000/svg">
+                                        <line x1="50" y1="30" x2="50" y2="110" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,2"/>
+                                        <line x1="30" y1="45" x2="70" y2="45" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,2"/>
+                                        <line x1="25" y1="70" x2="75" y2="70" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,2"/>
+                                        <line x1="35" y1="100" x2="65" y2="100" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,2"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="visual-measurements" class="mt-4 border-t border-gray-100 pt-4 hidden">
+                        <div class="flex justify-center">
+                            <div class="relative w-48 h-64 bg-gray-100 rounded-lg max-h-[40vh]">
+                                <svg class="w-full h-full" viewBox="0 0 100 140" xmlns="http://www.w3.org/2000/svg">
+                                    <!-- Simple body outline -->
+                                    <path d="M50,20 C60,20 65,30 65,40 C65,50 60,55 60,65 L55,100 L45,100 L40,65 C40,55 35,50 35,40 C35,30 40,20 50,20 Z" fill="#e5e7eb" stroke="#9ca3af" stroke-width="1"/>
+                                    
+                                    <!-- Measurement lines -->
+                                    <line x1="32" y1="45" x2="68" y2="45" stroke="#3b82f6" stroke-width="1.5" class="pulse"/>
+                                    <text x="70" y="48" font-size="6" fill="#3b82f6">48cm</text>
+                                    
+                                    <line x1="30" y1="65" x2="70" y2="65" stroke="#3b82f6" stroke-width="1.5" class="pulse"/>
+                                    <text x="72" y="68" font-size="6" fill="#3b82f6">72cm</text>
+                                    
+                                    <line x1="37" y1="85" x2="63" y2="85" stroke="#3b82f6" stroke-width="1.5" class="pulse"/>
+                                    <text x="65" y="88" font-size="6" fill="#3b82f6">38cm</text>
+                                    
+                                    <!-- Height line -->
+                                    <line x1="25" y1="20" x2="25" y2="110" stroke="#3b82f6" stroke-width="1.5" class="pulse"/>
+                                    <text x="15" y="65" font-size="6" fill="#3b82f6" transform="rotate(270, 15, 65)">175cm</text>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="visual-somatotype" class="mt-4 border-t border-gray-100 pt-4 hidden">
+                        <div class="flex justify-center flex-wrap">
+                            <div class="flex flex-wrap justify-center space-x-2 sm:space-x-6">
+                                <div class="flex flex-col items-center">
+                                    <div class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-2">
+                                        <div class="w-3/4 h-3/4 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center pulse">
+                                            <span class="text-blue-800 text-xs font-medium">32%</span>
+                                        </div>
+                                    </div>
+                                    <span class="text-xs text-gray-600">Ectomorph</span>
+                                </div>
+                                <div class="flex flex-col items-center">
+                                    <div class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-2">
+                                        <div class="w-4/5 h-4/5 rounded-full bg-blue-100 border border-blue-300 flex items-center justify-center pulse">
+                                            <span class="text-blue-800 text-xs font-medium">45%</span>
+                                        </div>
+                                    </div>
+                                    <span class="text-xs text-gray-600">Mesomorph</span>
+                                </div>
+                                <div class="flex flex-col items-center">
+                                    <div class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-2">
+                                        <div class="w-1/2 h-1/2 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center pulse">
+                                            <span class="text-blue-800 text-xs font-medium">23%</span>
+                                        </div>
+                                    </div>
+                                    <span class="text-xs text-gray-600">Endomorph</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="visual-diet" class="mt-4 border-t border-gray-100 pt-4 hidden">
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="flex flex-col items-center p-2 bg-green-50 rounded">
+                                <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mb-1">
+                                    <span class="text-green-700 text-xs font-bold">30%</span>
+                                </div>
+                                <span class="text-xs text-gray-700">Protein</span>
+                            </div>
+                            <div class="flex flex-col items-center p-2 bg-yellow-50 rounded">
+                                <div class="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center mb-1">
+                                    <span class="text-yellow-700 text-xs font-bold">40%</span>
+                                </div>
+                                <span class="text-xs text-gray-700">Carbs</span>
+                            </div>
+                            <div class="flex flex-col items-center p-2 bg-blue-50 rounded">
+                                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mb-1">
+                                    <span class="text-blue-700 text-xs font-bold">30%</span>
+                                </div>
+                                <span class="text-xs text-gray-700">Fats</span>
+                            </div>
+                            <div class="col-span-3 mt-2">
+                                <div class="h-3 bg-gray-100 rounded-full overflow-hidden flex">
+                                    <div class="h-full bg-green-400 pulse" style="width: 30%"></div>
+                                    <div class="h-full bg-yellow-400 pulse" style="width: 40%"></div>
+                                    <div class="h-full bg-blue-400 pulse" style="width: 30%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Estimated time -->
+                    <div class="text-center text-gray-500 text-sm mt-4 sticky bottom-0 bg-white pt-2">
+                        <p>Estimated time remaining: <span id="time-remaining">45 seconds</span></p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Simulated processing timeline (in a real app, this would be based on actual backend processing)
+        const processingSteps = [
+            {
+                step: 1,
+                title: "Processing User Input",
+                description: "We're collecting and preparing your personal details to inform our analysis.",
+                duration: 5000, // 5 seconds
+                progressClass: "p-20",
+                visualId: "visual-user-input"
+            },
+            {
+                step: 2,
+                title: "Analyzing Image Capture",
+                description: "Our AI is processing your photos to identify key body landmarks and features.",
+                duration: 6000, // 6 seconds
+                progressClass: "p-20",
+                visualId: "visual-image-processing"
+            },
+            {
+                step: 3,
+                title: "Extracting Measurements",
+                description: "Using computer vision to calculate precise body measurements and proportions.",
+                duration: 7000, // 7 seconds
+                progressClass: "p-20",
+                visualId: "visual-measurements"
+            },
+            {
+                step: 4,
+                title: "Determining Somatotype",
+                description: "Analyzing your measurements to classify your unique body type composition.",
+                duration: 6000, // 6 seconds
+                progressClass: "p-20",
+                visualId: "visual-somatotype"
+            },
+            {
+                step: 5,
+                title: "Creating Diet Recommendation",
+                description: "Generating a personalized nutrition plan based on your somatotype and preferences.",
+                duration: 8000, // 8 seconds
+                progressClass: "p-20",
+                visualId: "visual-diet",
+                final: true
+            }
+        ];
+
+        // Get DOM elements
+        const progressLine = document.getElementById('progress-line');
+        const cardTitle = document.getElementById('card-title');
+        const cardDescription = document.getElementById('card-description');
+        const cardProgress = document.getElementById('card-progress');
+        const timeRemaining = document.getElementById('time-remaining');
+        const processingCard = document.getElementById('processing-card');
+
+        // Initialize total duration and elapsed time
+        const totalDuration = processingSteps.reduce((total, step) => total + step.duration, 0);
+        let elapsedTime = 0;
+        let currentStep = 0;
+
+        // Update time remaining
+        function updateTimeRemaining() {
+            const remaining = Math.max(0, Math.ceil((totalDuration - elapsedTime) / 1000));
+            timeRemaining.textContent = `${remaining} seconds`;
+        }
+
+        // Process each step sequentially
+        function processStep(index) {
+            if (index >= processingSteps.length) {
+                // All steps complete, redirect to results page
+                setTimeout(() => {
+                    cardProgress.innerHTML = 'Complete! <span class="ml-1">✓</span>';
+                    cardProgress.classList.remove('bg-blue-50', 'text-blue-800');
+                    cardProgress.classList.add('bg-green-50', 'text-green-800');
+                    
+                    setTimeout(() => {
+                        // In a real app, redirect to results page
+                        alert('Processing complete! Redirecting to your results...');
+                        // window.location.href = 'results.html';
+                    }, 2000);
+                }, 1000);
+                return;
+            }
+
+            const step = processingSteps[index];
+            
+            // Update active step indicator
+            document.querySelectorAll('.processing-step').forEach((el, i) => {
+                if (i < index) {
+                    el.classList.remove('active');
+                    el.classList.add('completed');
+                    document.getElementById(`step-${i+1}-status`).textContent = 'Completed';
+                } else if (i === index) {
+                    el.classList.add('active');
+                    document.getElementById(`step-${i+1}-status`).textContent = 'In Progress';
+                    document.getElementById(`step-${i+1}-details`).classList.remove('text-gray-400');
+                    document.getElementById(`step-${i+1}-details`).classList.add('text-gray-500');
+                }
+            });
+            
+            // Update progress line
+            progressLine.className = `progress-line ${step.progressClass}`;
+            
+            // Update card content with animation
+            processingCard.classList.remove('active');
+            processingCard.classList.add('inactive');
+            
+            setTimeout(() => {
+                // Hide all visuals
+                document.querySelectorAll('[id^="visual-"]').forEach(el => el.classList.add('hidden'));
+                
+                // Show relevant visual
+                document.getElementById(step.visualId).classList.remove('hidden');
+                
+                cardTitle.textContent = step.title;
+                cardDescription.textContent = step.description;
+                
+                processingCard.classList.remove('inactive');
+                processingCard.classList.add('active');
+            }, 500);
+            
+            // Process next step after duration
+            setTimeout(() => {
+                elapsedTime += step.duration;
+                updateTimeRemaining();
+                processStep(index + 1);
+            }, step.duration);
+        }
+
+        // Start processing
+        window.addEventListener('load', () => {
+            updateTimeRemaining();
+            processStep(0);
+        });
+    </script>
+
+</body>
+</html>

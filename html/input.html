@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Information Input - Somatotype AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .hero-bg {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(255, 255, 255, 0) 100%), url('./ai-background.avif') no-repeat center center;
+            background-size: cover;
+        }
+        .form-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+        }
+        Select {
+            background-color: #f8fafc;
+            border: 1px solid #d1d5db;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            transition: all 0.3s ease-in-out;
+        }
+        select option:checked,
+        select option:hover {
+            background-color: #dbeafe !important;
+            color: #1e40af !important;
+        }
+        select option:focus {
+            background-color: #bfdbfe !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 antialiased">
+
+
+    <section class="py-12 md:py-16">
+        <div class="container mx-auto px-4">
+            <div class="max-w-2xl mx-auto">
+                <a href="landing.html" class="inline-flex items-center text-blue-600 hover:text-blue-800 transition duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+                    </svg>
+                    Go back
+                </a>
+                <div class="text-center mb-10" data-aos="fade-up">
+                    <h1 class="text-3xl md:text-4xl font-bold mb-4">Personal Information</h1>
+                    <p class="text-lg text-gray-600">
+                        Please provide your details so we can create a personalized diet plan tailored to your unique needs.
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-lg p-6 md:p-8" data-aos="fade-up" data-aos-delay="100">
+                    <form id="personalInfoForm" class="space-y-6">
+                        <!-- Name Input -->
+                        <div>
+                            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                            <input type="text" id="name" name="name" required
+                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none transition-colors"
+                                placeholder="Enter your full name">
+                        </div>
+
+                        <!-- Gender Selection -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                            <div class="flex space-x-4">
+                                <label class="flex items-center">
+                                    <input type="radio" name="gender" value="male" required
+                                        class="form-radio h-5 w-5 text-blue-600">
+                                    <span class="ml-2">Male</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="gender" value="female" required
+                                        class="form-radio h-5 w-5 text-blue-600">
+                                    <span class="ml-2">Female</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Age Input -->
+                        <div>
+                            <label for="age" class="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                            <input type="number" id="age" name="age" min="1" max="120" required
+                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none transition-colors"
+                                placeholder="Enter your age">
+                        </div>
+
+                        <!-- Height and Weight in a grid layout -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="height" class="block text-sm font-medium text-gray-700 mb-1">Height (cm)</label>
+                                <input type="number" id="height" name="height" min="50" max="250" step="0.1" required
+                                    class="form-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none transition-colors"
+                                    placeholder="Enter your height in cm">
+                            </div>
+                            <div>
+                                <label for="weight" class="block text-sm font-medium text-gray-700 mb-1">Weight (kg)</label>
+                                <input type="number" id="weight" name="weight" min="20" max="300" step="0.1" required
+                                    class="form-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none transition-colors"
+                                    placeholder="Enter your weight in kg">
+                            </div>
+                        </div>
+
+                        <!-- Activity Level Dropdown -->
+                        <div>
+                            <label for="activityLevel" class="block text-sm font-medium text-gray-700 mb-1">Activity Level</label>
+                            <select id="activityLevel" name="activityLevel" required
+                                class="form-select w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none transition-colors">
+                                <option value="" disabled selected>Select your activity level</option>
+                                <option value="sedentary">Sedentary (little or no exercise)</option>
+                                <option value="light">Lightly active (light exercise/sports 1-3 days/week)</option>
+                                <option value="moderate">Moderately active (moderate exercise/sports 3-5 days/week)</option>
+                                <option value="very">Very active (hard exercise/sports 6-7 days a week)</option>
+                                <option value="extra">Extra active (very hard exercise & physical job or 2x training)</option>
+                            </select>
+                        </div>
+
+                        <!-- Goal Selection -->
+                        <div>
+                            <label for="goal" class="block text-sm font-medium text-gray-700 mb-1">Your Goal</label>
+                            <select id="goal" name="goal" required
+                                class="form-select w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none transition-colors">
+                                <option value="" disabled selected>Select your primary goal</option>
+                                <option value="lose">Lose Weight</option>
+                                <option value="maintain">Maintain Weight</option>
+                                <option value="gain">Gain Weight</option>
+                            </select>
+                        </div>
+
+                        <!-- Allergies/Dietary Restrictions (Optional) -->
+                        <div>
+                            <label for="allergies" class="block text-sm font-medium text-gray-700 mb-1">Allergies or Dietary Restrictions</label>
+                            <select id="allergies" name="allergies" multiple
+                                class="form-select w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none transition-colors"
+                                size="5">
+                                <option value="">No allergies or restrictions</option>
+                                <option value="dairy">Dairy</option>
+                                <option value="eggs">Eggs</option>
+                                <option value="peanuts">Peanuts</option>
+                                <option value="tree_nuts">Tree Nuts</option>
+                                <option value="soy">Soy</option>
+                                <option value="wheat">Wheat</option>
+                                <option value="gluten">Gluten</option>
+                                <option value="fish">Fish</option>
+                                <option value="shellfish">Shellfish</option>
+                                <option value="sesame">Sesame</option>
+                            </select>
+                            <p class="mt-1 text-sm text-gray-500">Hold Ctrl (or Cmd on Mac) to select multiple options</p>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="pt-4">
+                            <a  href="./capture.html"
+                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition duration-300 ease-in-out flex items-center justify-center">
+                                <span>Continue to Image capture</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="mt-6 text-center text-sm text-gray-500" data-aos="fade-up" data-aos-delay="200">
+                    Your data is securely processed and will only be used for generating your personalized diet recommendations.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        // Initialize AOS animation library
+        AOS.init({
+            duration: 800,
+            once: true,
+        });
+
+        // Form submission handling
+        document.getElementById('personalInfoForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Collect form data
+            const formData = new FormData(this);
+            const userData = Object.fromEntries(formData.entries());
+            
+            // Save to localStorage for next steps
+            localStorage.setItem('userData', JSON.stringify(userData));
+            
+            // Redirect to photo upload page (you'll need to create this page)
+            // window.location.href = 'photo-upload.html';
+            
+            // For now, just alert with the data
+            alert('Form submitted! Ready for next step: Photo Upload');
+            console.log(userData);
+        });
+    </script>
+
+</body>
+</html>
