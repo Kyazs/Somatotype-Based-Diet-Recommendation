@@ -13,7 +13,7 @@ class LandingPage(ctk.CTkFrame):  # Change from CTk to CTkFrame
         # Title Label
         self.title_label = ctk.CTkLabel(
             self, 
-            text="Somatotype Based Diet Recommendation System", 
+            text="PERSONALIZED DIET RECOMMENDATIONS USING CAMERA-BASED SOMATOTYPE ANALYSIS", 
             font=("Arial", 24, "bold")
         )
         self.title_label.grid(row=0, column=0, pady=20)
