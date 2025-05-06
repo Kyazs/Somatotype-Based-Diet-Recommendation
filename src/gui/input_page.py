@@ -290,33 +290,33 @@ class InputPage(ctk.CTkFrame):
         self.activity_dropdown.grid(row=9, column=0, sticky="ew", padx=20, pady=(0, 15), columnspan=2)
         
         # Allergies/Dietary Restrictions (Optional)
-        self.allergies_label = ThemeManager.create_label(self.form_card, "Allergies or Dietary Restrictions (Optional)", bold=True)
-        self.allergies_label.grid(row=10, column=0, sticky="w", padx=20, pady=(0, 5), columnspan=2)
+        # self.allergies_label = ThemeManager.create_label(self.form_card, "Allergies or Dietary Restrictions (Optional)", bold=True)
+        # self.allergies_label.grid(row=10, column=0, sticky="w", padx=20, pady=(0, 5), columnspan=2)
         
-        # Allergies as checkboxes
-        self.allergies_frame = ctk.CTkFrame(self.form_card, fg_color="transparent")
-        self.allergies_frame.grid(row=11, column=0, sticky="ew", padx=20, pady=(0, 20), columnspan=2)
-        self.allergies_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        # # Allergies as checkboxes
+        # self.allergies_frame = ctk.CTkFrame(self.form_card, fg_color="transparent")
+        # self.allergies_frame.grid(row=11, column=0, sticky="ew", padx=20, pady=(0, 20), columnspan=2)
+        # self.allergies_frame.grid_columnconfigure((0, 1, 2), weight=1)
         
-        # Create allergy checkboxes
-        self.allergy_vars = {}
-        allergy_options = ["Dairy", "Eggs", "Peanuts", "Tree Nuts", "Soy", "Wheat", "Gluten", "Fish", "Shellfish", "Sesame"]
+        # # Create allergy checkboxes
+        # self.allergy_vars = {}
+        # allergy_options = ["Dairy", "Eggs", "Peanuts", "Tree Nuts", "Soy", "Wheat", "Gluten", "Fish", "Shellfish", "Sesame"]
         
-        for i, allergy in enumerate(allergy_options):
-            # Calculate row and column (3 columns grid)
-            row_idx = i // 3
-            col_idx = i % 3
+        # for i, allergy in enumerate(allergy_options):
+        #     # Calculate row and column (3 columns grid)
+        #     row_idx = i // 3
+        #     col_idx = i % 3
             
-            self.allergy_vars[allergy] = ctk.BooleanVar(value=False)
-            checkbox = ctk.CTkCheckBox(
-                self.allergies_frame,
-                text=allergy,
-                variable=self.allergy_vars[allergy],
-                font=ThemeManager.get_small_font(),
-                checkbox_height=20,
-                checkbox_width=20
-            )
-            checkbox.grid(row=row_idx, column=col_idx, padx=10, pady=5, sticky="w")
+        #     self.allergy_vars[allergy] = ctk.BooleanVar(value=False)
+        #     checkbox = ctk.CTkCheckBox(
+        #         self.allergies_frame,
+        #         text=allergy,
+        #         variable=self.allergy_vars[allergy],
+        #         font=ThemeManager.get_small_font(),
+        #         checkbox_height=20,
+        #         checkbox_width=20
+        #     )
+        #     checkbox.grid(row=row_idx, column=col_idx, padx=10, pady=5, sticky="w")
         
         # Submit button
         self.submit_button = ThemeManager.create_primary_button(
@@ -348,10 +348,10 @@ class InputPage(ctk.CTkFrame):
         activity_level = self.activity_dropdown.get()
         
         # Collect selected allergies
-        allergies = []
-        for allergy, var in self.allergy_vars.items():
-            if var.get():
-                allergies.append(allergy)
+        # allergies = []
+        # for allergy, var in self.allergy_vars.items():
+        #     if var.get():
+        #         allergies.append(allergy)
         
         # Validation
         if not name:
@@ -385,7 +385,7 @@ class InputPage(ctk.CTkFrame):
             height=height,
             goal=goal,
             activity_level=activity_level,
-            allergies=allergies
+            # allergies=allergies
         )
         
         # Save data to input files
@@ -423,9 +423,9 @@ class InputPage(ctk.CTkFrame):
         self.goal_dropdown.set(user_data["goal"])
         self.activity_dropdown.set(user_data["activity_level"])
         
-        # Set allergies checkboxes
-        for allergy, var in self.allergy_vars.items():
-            var.set(allergy in user_data["allergies"])
+        # # Set allergies checkboxes
+        # for allergy, var in self.allergy_vars.items():
+        #     var.set(allergy in user_data["allergies"])
 
 if __name__ == "__main__":
     # For standalone testing
