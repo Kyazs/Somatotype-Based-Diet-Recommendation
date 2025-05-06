@@ -486,11 +486,11 @@ class DietPage(ctk.CTkFrame):
         )
         self.recommended_foods.grid(row=3, column=0, sticky="nsew", padx=(0, 10), pady=(0, 15))
         
-        self.avoid_foods = FoodRecommendationCard(
-            self.content_scroll,
-            category="Limit or Avoid"
-        )
-        self.avoid_foods.grid(row=3, column=1, sticky="nsew", padx=(10, 0), pady=(0, 15))
+        # self.avoid_foods = FoodRecommendationCard(
+        #     self.content_scroll,
+        #     category="Limit or Avoid"
+        # )
+        # self.avoid_foods.grid(row=3, column=1, sticky="nsew", padx=(10, 0), pady=(0, 15))
         
         # Footer with navigation buttons
         self.footer_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -645,10 +645,10 @@ class DietPage(ctk.CTkFrame):
                 # Update food recommendation cards
                 if recommended_foods:
                     self.recommended_foods.update_foods(recommended_foods)
-                if avoid_foods:
-                    self.avoid_foods.update_foods(avoid_foods)
-                else:
-                    self.avoid_foods.update_foods(["No specific foods to avoid"])
+                # if avoid_foods:
+                #     self.avoid_foods.update_foods(avoid_foods)
+                # else:
+                #     self.avoid_foods.update_foods(["No specific foods to avoid"])
                 
             except Exception as e:
                 print(f"Error extracting food recommendations: {str(e)}")
@@ -765,7 +765,7 @@ class DietPage(ctk.CTkFrame):
         
         message_label = ctk.CTkLabel(
             message_frame,
-            text="This feature will allow you to save\nyour diet plan as a PDF file.\n\nComing soon!",
+            text="This feature will allow you to save\nyour diet plan as a PDF file.\n\nCurrently, this feature is not implemented.",
             font=ThemeManager.get_label_font()
         )
         message_label.pack(expand=True)
