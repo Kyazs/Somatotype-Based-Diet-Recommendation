@@ -1,0 +1,158 @@
+================================================================================
+SOMATOTYPE-BASED DIET & EXERCISE RECOMMENDATION SIMULATION
+================================================================================
+Generated: 2025-09-03 12:08:40
+Method: Heath-Carter Somatotype Classification
+Users Processed: 1
+
+SIMULATION OVERVIEW:
+This simulation demonstrates the complete workflow from user input
+through somatotype classification to personalized recommendations.
+
+================================================================================
+
+USER 1: CASPER
+--------------------------------------------------
+
+📋 USER INPUT:
+   Name: casper
+   Weight: 50.0 kg
+   Gender: Male
+   Height: 165.0 cm
+   Age: 21 years
+   Goal: Gain Weight
+   Activity Level: Moderately active
+   Somatotype Rating: 3-3-6 (Heath-Carter)
+
+📏 ANTHROPOMETRIC ANALYSIS:
+   BMI: 18.4 (Underweight)
+   Healthy Weight Range: 50.4-67.8 kg
+   Basal Metabolic Rate (BMR): 1431 kcal/day
+   Total Daily Energy Expenditure (TDEE): 2218 kcal/day
+
+📊 SOMATOTYPE ANALYSIS:
+   Raw Components: Endomorphy=3.0, Mesomorphy=3.0, Ectomorphy=6.0
+   Dominant Type: Ectomorph
+   Classification: Strongly Ectomorphic
+   Description: Lean, low body fat, difficulty gaining weight
+
+   Key Characteristics:
+     • Fast metabolism
+     • Linear build
+     • Low muscle mass
+     • Low fat storage
+
+🏋️ EXERCISE RECOMMENDATION ANALYSIS:
+   Primary Training Focus: Strength training for muscle building and weight gain
+   Goal Alignment: Optimized for gain weight
+   Somatotype Rationale: Compound movements and progressive overload for muscle building
+
+   Training Parameters:
+     • Weekly Frequency: 4-5 sessions per week
+     • Session Duration: 45-60 minutes
+     • Intensity: Moderate to high
+     • Progression: Linear progression suitable for ectomorphs
+
+   Ectomorph-Specific Training Benefits:
+     • Responds well to strength training for muscle building
+     • Benefits from compound movements
+     • Requires adequate recovery between sessions
+     • Progressive overload essential for growth
+
+   Somatotype-Specific Exercise Selection:
+   Based on Universal Exercise Database + Goal/Activity Optimization:
+
+   **Strength Training (71% of routine):**
+     1. Semi Squat Jump (Male) - Functional movement pattern (Target: cardiovascular system)
+     2. Jump Squat - Lower body power (Target: glutes)
+     3. Bodyweight Drop Jump Squat - Plyometric strength (Target: glutes)
+     4. Jump Squat V. 2 - Variation for progression (Target: glutes)
+     5. Archer Pull Up - Functional movement pattern (Target: lats)
+
+   **Power Training (28% of routine):**
+     6. Kneeling Jump Squat - Functional movement pattern (Target: glutes)
+     7. Barbell Jump Squat - Functional movement pattern (Target: glutes)
+
+
+🍽️ NUTRITION RECOMMENDATION ANALYSIS:
+
+   Caloric Distribution:
+     • Total Daily Calories: 2518 kcal
+     • Base TDEE: 2218 kcal (activity-adjusted)
+     • Goal Adjustment: +300 kcal for gain weight
+
+   Macronutrient Breakdown:
+   | Macro         | Grams | Calories | Percentage | Ectomorph Rationale |
+   |---------------|-------|----------|------------|---------------------|
+   | Protein       | 157g  | 628 kcal  | 25%        | Adequate protein for muscle building |
+   | Carbohydrates | 314g  | 1256 kcal  | 50%        | High carbs for energy and recovery |
+   | Fats          | 69g  | 621 kcal  | 25%        | Healthy fats for calorie density |
+
+   Ectomorph-Specific Nutrition Strategy:
+     • Meal Timing: Frequent meals every 2-3 hours, including pre-bed snack
+     • Pre-Workout: Complex carbs + protein (1-2 hours before)
+     • Post-Workout: Protein + fast carbs (within 30 minutes)
+     • Hydration: 3.5 liters per day
+
+   Food Category Analysis:
+
+   **Proteins (Lean sources for ectomorphs):**
+     Chicken breast - High biological value protein
+     Salmon - Omega-3 fatty acids + protein
+     Eggs - Complete amino acid profile
+     Greek yogurt - Casein protein for sustained release
+     Protein powder - Convenient post-workout option
+
+   **Carbohydrates (Optimized for ectomorph metabolism):**
+     Oats - Sustained energy release
+     Brown rice - Complex carbohydrates
+     Sweet potatoes - Nutrient-dense carbs
+     Quinoa - Complete protein + carbs
+     Whole grain bread - B vitamins + fiber
+
+   **Fats (Strategic selection for ectomorphs):**
+     Nuts - Calorie-dense healthy fats
+     Avocado - Monounsaturated fats
+     Olive oil - Anti-inflammatory fats
+     Peanut butter - Convenient calorie source
+     Seeds - Essential fatty acids
+
+💡 PERSONALIZATION FACTORS:
+   • BMI analysis: 18.4 (Underweight)
+   • Gender-specific BMR calculation: 1431 kcal/day
+   • Activity-adjusted TDEE: 2218 kcal/day
+   • Somatotype-specific metabolism considerations
+   • Goal-oriented calorie and macro adjustments
+   • Activity level modifications for energy needs
+   • Age-appropriate nutritional requirements
+
+📈 EXPECTED OUTCOMES:
+   • Gradual weight gain (0.5-1 lb/week)
+   • Increased muscle mass with consistent training
+   • Improved strength and body composition
+
+================================================================================
+
+SIMULATION SUMMARY:
+------------------------------
+
+This simulation demonstrates how somatotype classification
+can be used to personalize both exercise and nutrition
+recommendations. The Heath-Carter method provides a
+scientific foundation for understanding body composition
+and metabolic tendencies.
+
+Key Benefits of Somatotype-Based Recommendations:
+• Personalized approach based on genetic predisposition
+• Optimized training methods for body type
+• Customized nutrition for metabolic characteristics
+• Realistic goal setting and expectations
+
+Data Sources:
+• Universal Exercise Database (1,500+ exercises)
+• FNDDS Optimized Nutrition Database (5,000+ foods)
+• Evidence-based somatotype research
+• Activity level and goal-specific modifications
+
+Simulation completed: 2025-09-03 12:08:40
+================================================================================
