@@ -13,6 +13,265 @@ sys.path.append(PROJECT_DIR)
 from src.utils.utils import INPUT_FILES_DIR
 
 
+class AdvancedPoseDetector:
+    """
+    Advanced Pose Detector using MediaPipe Tasks API for improved accuracy.
+    Following the latest MediaPipe documentation for pose landmarker.
+    """
+    
+    def __init__(self):
+        # Initialize MediaPipe pose landmarker with improved configuration
+        self.mp_pose = mp.solutions.pose
+        self.mp_drawing = mp.solutions.drawing_utils
+        self.mp_drawing_styles = mp.solutions.drawing_styles
+        
+        # Enhanced pose configuration for better accuracy
+        self.pose = self.mp_pose.Pose(
+            static_image_mode=False,
+            model_complexity=2,  # Use more complex model for better accuracy
+            enable_segmentation=True,  # Enable segmentation for better body detection
+            min_detection_confidence=0.7,  # Increased confidence threshold
+            min_tracking_confidence=0.7    # Increased tracking confidence
+        )
+        
+        # Store the latest pose results
+        self.results = None
+        
+        # Create output directory if it doesn't exist
+        self.output_dir = "captured_poses"
+        os.makedirs(self.output_dir, exist_ok=True)
+
+    def detect_pose(self, image, draw_landmarks=True):
+        """
+        Detect pose landmarks in the given image.
+        Returns the processed image with landmarks drawn (if enabled).
+        """
+        # Convert BGR to RGB for MediaPipe processing
+        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
+        # Process the image and detect pose landmarks
+        self.results = self.pose.process(rgb_image)
+        
+        # Draw landmarks if requested and pose is detected
+        if draw_landmarks and self.results.pose_landmarks:
+            # Draw pose landmarks with enhanced styling
+            self.mp_drawing.draw_landmarks(
+                image,
+                self.results.pose_landmarks,
+                self.mp_pose.POSE_CONNECTIONS,
+                landmark_drawing_spec=self.mp_drawing_styles.get_default_pose_landmarks_style()
+            )
+            
+            # Draw additional visual feedback for pose quality
+            self._draw_pose_quality_indicators(image)
+        
+        return image
+
+    def get_landmarks(self):
+        """
+        Get the normalized landmarks as a list of [id, x, y, z, visibility, presence].
+        Returns empty list if no pose is detected.
+        """
+        landmarks = []
+        if self.results and self.results.pose_landmarks:
+            for idx, landmark in enumerate(self.results.pose_landmarks.landmark):
+                landmarks.append([
+                    idx,
+                    landmark.x,
+                    landmark.y,
+                    landmark.z,
+                    landmark.visibility,
+                    getattr(landmark, 'presence', 0.0)  # Some versions might not have presence
+                ])
+        return landmarks
+
+    def _draw_pose_quality_indicators(self, image):
+        """Draw visual indicators for pose quality assessment."""
+        h, w = image.shape[:2]
+        
+        # Draw frame boundaries for pose assessment
+        cv2.rectangle(image, (int(w*0.1), int(h*0.05)), (int(w*0.9), int(h*0.95)), (0, 255, 0), 2)
+        
+        # Add text overlay for pose status
+        pose_status = self._assess_pose_quality()
+        cv2.putText(image, pose_status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+    def _assess_pose_quality(self):
+        """Assess the quality of the current pose detection."""
+        if not self.results or not self.results.pose_landmarks:
+            return "No pose detected"
+        
+        landmarks = self.get_landmarks()
+        if len(landmarks) < 33:
+            return "Incomplete pose"
+        
+        # Check visibility scores
+        avg_visibility = sum(lm[4] for lm in landmarks) / len(landmarks)
+        
+        if avg_visibility > 0.8:
+            return "Excellent pose quality"
+        elif avg_visibility > 0.6:
+            return "Good pose quality"
+        elif avg_visibility > 0.4:
+            return "Fair pose quality"
+        else:
+            return "Poor pose quality"
+
+    def is_full_body_visible(self, landmarks=None):
+        """
+        Check if the full body is visible in the frame with improved accuracy.
+        Uses visibility scores and landmark positions for better assessment.
+        """
+        if landmarks is None:
+            landmarks = self.get_landmarks()
+        
+        if len(landmarks) < 33:
+            return False
+        
+        # Key landmarks for full body assessment
+        nose = landmarks[0]
+        left_shoulder = landmarks[11]
+        right_shoulder = landmarks[12]
+        left_hip = landmarks[23]
+        right_hip = landmarks[24]
+        left_ankle = landmarks[27]
+        right_ankle = landmarks[28]
+        left_foot_index = landmarks[31]
+        right_foot_index = landmarks[32]
+        
+        # Check if key landmarks are visible with good confidence
+        key_landmarks = [nose, left_shoulder, right_shoulder, left_hip, right_hip, 
+                        left_ankle, right_ankle, left_foot_index, right_foot_index]
+        
+        # All key landmarks should have good visibility
+        min_visibility = 0.6
+        visible_landmarks = [lm for lm in key_landmarks if lm[4] > min_visibility]
+        
+        if len(visible_landmarks) < 8:  # At least 8 out of 9 key landmarks should be visible
+            return False
+        
+        # Check if head and feet are in appropriate positions
+        head_y = nose[2]
+        feet_y = max(left_foot_index[2], right_foot_index[2])
+        
+        # Head should be in upper portion, feet in lower portion
+        head_in_upper = head_y < 0.3
+        feet_in_lower = feet_y > 0.7
+        
+        return head_in_upper and feet_in_lower
+
+    def is_front_pose(self, landmarks=None):
+        """
+        Detect if the person is in a front-facing pose with improved accuracy.
+        Uses shoulder symmetry, hip alignment, and body orientation.
+        """
+        if landmarks is None:
+            landmarks = self.get_landmarks()
+        
+        if not self.is_full_body_visible(landmarks):
+            return False
+        
+        left_shoulder = landmarks[11]
+        right_shoulder = landmarks[12]
+        left_hip = landmarks[23]
+        right_hip = landmarks[24]
+        left_wrist = landmarks[15]
+        right_wrist = landmarks[16]
+        
+        # Check shoulder symmetry (y-coordinates should be similar)
+        shoulder_y_diff = abs(left_shoulder[2] - right_shoulder[2])
+        shoulder_symmetry = shoulder_y_diff < 0.05  # 5% of image height
+        
+        # Check hip symmetry
+        hip_y_diff = abs(left_hip[2] - right_hip[2])
+        hip_symmetry = hip_y_diff < 0.05
+        
+        # Check if arms are spread (for T-pose or A-pose)
+        shoulder_width = abs(left_shoulder[1] - right_shoulder[1])
+        arm_spread = abs(left_wrist[1] - right_wrist[1]) > shoulder_width * 1.2
+        
+        # Check z-depth symmetry (both shoulders should be at similar depth)
+        shoulder_z_diff = abs(left_shoulder[3] - right_shoulder[3])
+        depth_symmetry = shoulder_z_diff < 0.1
+        
+        # All visibility checks
+        min_visibility = 0.7
+        visibility_check = all(lm[4] > min_visibility for lm in 
+                             [left_shoulder, right_shoulder, left_hip, right_hip])
+        
+        return (shoulder_symmetry and hip_symmetry and arm_spread and 
+                depth_symmetry and visibility_check)
+
+    def is_side_pose(self, landmarks=None):
+        """
+        Detect if the person is in a side pose with improved accuracy.
+        Uses depth differences and body alignment patterns.
+        """
+        if landmarks is None:
+            landmarks = self.get_landmarks()
+        
+        if not self.is_full_body_visible(landmarks):
+            return False
+        
+        left_shoulder = landmarks[11]
+        right_shoulder = landmarks[12]
+        left_hip = landmarks[23]
+        right_hip = landmarks[24]
+        nose = landmarks[0]
+        left_wrist = landmarks[15]
+        right_wrist = landmarks[16]
+        
+        # Check for significant depth difference between shoulders (side view indicator)
+        shoulder_z_diff = abs(left_shoulder[3] - right_shoulder[3])
+        significant_depth_diff = shoulder_z_diff > 0.15
+        
+        # Check vertical alignment of body parts (shoulders, hips should align vertically)
+        shoulder_x_diff = abs(left_shoulder[1] - right_shoulder[1])
+        hip_x_diff = abs(left_hip[1] - right_hip[1])
+        vertical_alignment = shoulder_x_diff < 0.1 and hip_x_diff < 0.1
+        
+        # Check if arms are down (not spread)
+        arms_down_left = abs(left_wrist[2] - left_shoulder[2]) > 0.15
+        arms_down_right = abs(right_wrist[2] - right_shoulder[2]) > 0.15
+        arms_down = arms_down_left and arms_down_right
+        
+        # Check visibility of key landmarks
+        min_visibility = 0.6
+        visibility_check = all(lm[4] > min_visibility for lm in 
+                             [left_shoulder, right_shoulder, left_hip, right_hip, nose])
+        
+        return (significant_depth_diff and vertical_alignment and 
+                arms_down and visibility_check)
+
+    # Legacy method compatibility
+    def findPose(self, img, draw=True):
+        """Legacy compatibility method"""
+        return self.detect_pose(img, draw)
+    
+    def findPosition(self, img, draw=False):
+        """Legacy compatibility method"""
+        landmarks = self.get_landmarks()
+        # Convert to old format for compatibility
+        old_format = []
+        h, w = img.shape[:2]
+        for lm in landmarks:
+            old_format.append([lm[0], int(lm[1] * w), int(lm[2] * h), lm[3]])
+        return old_format
+    
+    def isFullBodyVisible(self, lmList, img_shape):
+        """Legacy compatibility method"""
+        return self.is_full_body_visible()
+    
+    def isFrontPose(self, lmList, img_shape):
+        """Legacy compatibility method"""
+        return self.is_front_pose()
+    
+    def isSidePose(self, lmList, img_shape):
+        """Legacy compatibility method"""
+        return self.is_side_pose()
+
+
+# Keep old class for backward compatibility
 class PoseDetector():
     
     def __init__(self):
@@ -41,7 +300,6 @@ class PoseDetector():
                     cv2.circle(img, (cx, cy), 7, (255, 0, 0), cv2.FILLED)
         return lmList
 
-
     def isFullBodyVisible(self, lmList, img_shape):
         h = img_shape[0]  # Removed unused variable 'w' and '_'
         if len(lmList) < 33:
@@ -59,7 +317,6 @@ class PoseDetector():
         shoulders_in_frame = left_shoulder[2] < h * 0.5 and right_shoulder[2] < h * 0.5
 
         return head_in_frame and feet_in_frame and shoulders_in_frame
-
 
     def isFrontPose(self, lmList, img_shape):
         # Ensures the subject is in a front pose with full-body visible
@@ -111,6 +368,7 @@ class PoseDetector():
             nose_depth_diff,
             arms_down
         ])
+
 
 # The following code is only used when this file is run directly (not imported)
 if __name__ == "__main__":
