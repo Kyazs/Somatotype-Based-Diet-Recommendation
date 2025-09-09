@@ -1,154 +1,3 @@
-import customtkinter as ctk
-from tkinter import messagebox  # Import messagebox for validation feedback
-import csv  # Import csv module for saving data
-import os  # Import os module to handle file paths
-
-from utils.utils import (
-    INPUT_FILES_DIR,  # Import the directory for input files
-)
-
-# Initialize the app
-ctk.set_appearance_mode("System")  # Modes: "System" (default), "Dark", "Light"
-ctk.set_default_color_theme("blue")  # Themes: "blue" (default), "green", "dark-blue"
-
-
-class InputPage(ctk.CTkFrame):  # Change from CTk to CTkFrame
-    def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.controller = controller
-
-        # Configure the frame
-        self.grid_rowconfigure(list(range(15)), weight=1)  # Adjust rows for proper spacing
-        self.grid_columnconfigure(0, weight=1)  # Center horizontally
-
-        # Title Label
-        self.title_label = ctk.CTkLabel(self, text="Input Your Details", font=ctk.CTkFont(size=20, weight="bold"))
-        self.title_label.grid(row=0, column=0, pady=20)
-
-        # Name Entry
-        self.name_label = ctk.CTkLabel(self, text="Name:")
-        self.name_label.grid(row=1, column=0, sticky="w", padx=20)
-        self.name_entry = ctk.CTkEntry(self, placeholder_text="Enter your name")
-        self.name_entry.grid(row=2, column=0, padx=20, pady=5, sticky="ew")
-        
-        # Gender Dropdown
-        self.gender_label = ctk.CTkLabel(self, text="Gender:")
-        self.gender_label.grid(row=3, column=0, sticky="w", padx=20)
-        self.gender_options = ["male", "female"]
-        self.gender_dropdown = ctk.CTkOptionMenu(self, values=self.gender_options)
-        self.gender_dropdown.grid(row=4, column=0, padx=20, pady=5, sticky="ew")
-
-        # Age Entry
-        self.age_label = ctk.CTkLabel(self, text="Age:")
-        self.age_label.grid(row=5, column=0, sticky="w", padx=20)
-        self.age_entry = ctk.CTkEntry(self, placeholder_text="Enter your age")
-        self.age_entry.grid(row=6, column=0, padx=20, pady=5, sticky="ew")
-
-        # Weight Entry
-        self.weight_label = ctk.CTkLabel(self, text="Weight (kg):")
-        self.weight_label.grid(row=7, column=0, sticky="w", padx=20)
-        self.weight_entry = ctk.CTkEntry(self, placeholder_text="Enter your weight")
-        self.weight_entry.grid(row=8, column=0, padx=20, pady=5, sticky="ew")
-
-        # Height Entry
-        self.height_label = ctk.CTkLabel(self, text="Height (cm):")
-        self.height_label.grid(row=9, column=0, sticky="w", padx=20)
-        self.height_entry = ctk.CTkEntry(self, placeholder_text="Enter your height")
-        self.height_entry.grid(row=10, column=0, padx=20, pady=5, sticky="ew")
-
-        # Goal Dropdown
-        self.goal_label = ctk.CTkLabel(self, text="Goal:")
-        self.goal_label.grid(row=11, column=0, sticky="w", padx=20)
-        self.goal_options = ["Gain Weight", "Lose Weight", "Maintain Weight"]
-        self.goal_dropdown = ctk.CTkOptionMenu(self, values=self.goal_options)
-        self.goal_dropdown.grid(row=12, column=0, padx=20, pady=5, sticky="ew")
-
-        # Submit Button
-        self.submit_button = ctk.CTkButton(self, text="Submit", command=self.submit_details)
-        self.submit_button.grid(row=13, column=0, pady=20)
-
-        # Back Button
-        self.back_button = ctk.CTkButton(
-            self, 
-            text="Back", 
-            command=lambda: controller.show_frame("LandingPage"),  # Navigate to LandingPage
-        )
-        self.back_button.grid(row=14, column=0, pady=10)
-
-    def submit_details(self):
-        name = self.name_entry.get().strip()
-        age = self.age_entry.get().strip()
-        weight = self.weight_entry.get().strip()
-        height = self.height_entry.get().strip()
-        goal = self.goal_dropdown.get()
-        gender = self.gender_dropdown.get()
-
-        # Validation
-        if not name:
-            messagebox.showerror("Input Error", "Name cannot be empty. Please enter your name.")
-            return
-        if not age.isdigit():
-            messagebox.showerror("Input Error", "Age must be a valid positive integer.")
-            return
-        if int(age) <= 0 or int(age) > 120:
-            messagebox.showerror("Input Error", "Age must be between 1 and 120.")
-            return
-        if not weight.replace('.', '', 1).isdigit():
-            messagebox.showerror("Input Error", "Weight must be a valid number.")
-            return
-        if float(weight) <= 0 or float(weight) > 500:
-            messagebox.showerror("Input Error", "Weight must be a positive number less than or equal to 500 kg.")
-            return
-        if not height.replace('.', '', 1).isdigit():
-            messagebox.showerror("Input Error", "Height must be a valid number.")
-            return
-        if float(height) <= 0 or float(height) > 300:
-            messagebox.showerror("Input Error", "Height must be a positive number less than or equal to 300 cm.")
-            return
-
-        # File paths
-        extractor_file_path = os.path.join(INPUT_FILES_DIR, "input_info_extractor.csv")
-        recommendation_file_path = os.path.join(INPUT_FILES_DIR, "input_info_recommendation.csv")
-
-        # Ensure directories exist
-        os.makedirs(os.path.dirname(extractor_file_path), exist_ok=True)
-        os.makedirs(os.path.dirname(recommendation_file_path), exist_ok=True)
-
-        # Write data to input_info_extractor.csv
-        with open(extractor_file_path, mode="w", newline="") as extractor_file:
-            extractor_writer = csv.writer(extractor_file)
-            extractor_writer.writerow(["gender", "stature_cm", "weight_kg"])  # Write header
-            extractor_writer.writerow([gender, height, weight])  # Write new data
-
-        # Write data to input_info_recommendation.csv
-        with open(recommendation_file_path, mode="w", newline="") as recommendation_file:
-            recommendation_writer = csv.writer(recommendation_file)
-            recommendation_writer.writerow(["Name", "Age", "Goal"])  # Write header
-            recommendation_writer.writerow([name, age, goal])  # Write new data
-
-        print(f"Name: {name}, Gender: {gender}, Age: {age}, Weight: {weight}, Height: {height}, Goal: {goal}")
-        messagebox.showinfo("Success", "Details submitted successfully and saved to files!")
-        
-        # Navigate to CapturePage directly without running external script
-        self.controller.show_frame("CapturePage")
-
-
-if __name__ == "__main__":
-    class StandaloneApp(ctk.CTk):  # Wrapper for standalone testing
-        def __init__(self):
-            super().__init__()
-            self.title("Input Page")
-            self.geometry("800x600")
-            self.resizable(False, False)
-            self.input_page = InputPage(self, self)
-            self.input_page.pack(fill="both", expand=True)
-
-        def show_frame(self, frame_name):
-            # Mock method for navigation
-            print(f"Navigation to {frame_name} requested.")
-
-    app = StandaloneApp()
-    app.mainloop()
 """
 Input Page for the Diet Recommendation System.
 Collects user personal information needed for diet recommendations.
@@ -211,12 +60,40 @@ class InputPage(ctk.CTkFrame):
         self.form_card.grid_columnconfigure((0, 1), weight=1)
         
         # Form fields
-        # Name
-        self.name_label = ThemeManager.create_label(self.form_card, "Full Name", bold=True)
-        self.name_label.grid(row=0, column=0, sticky="w", padx=20, pady=(20, 5))
+        # Name section - separated into first, middle, last
+        self.name_label = ThemeManager.create_label(self.form_card, "Name", bold=True)
+        self.name_label.grid(row=0, column=0, sticky="w", padx=20, pady=(20, 5), columnspan=2)
         
-        self.name_entry = ThemeManager.create_entry(self.form_card, "Enter your full name")
-        self.name_entry.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 15), columnspan=2)
+        # Name fields frame
+        self.name_frame = ctk.CTkFrame(self.form_card, fg_color="transparent")
+        self.name_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 15), columnspan=2)
+        self.name_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        
+        # First Name
+        self.first_name_label = ThemeManager.create_label(self.name_frame, "First Name*", bold=False)
+        self.first_name_label.grid(row=0, column=0, sticky="w", pady=(0, 5))
+        
+        self.first_name_entry = ThemeManager.create_entry(self.name_frame, "First name")
+        self.first_name_entry.grid(row=1, column=0, sticky="ew", padx=(0, 5), pady=(0, 5))
+        
+        # Middle Name
+        self.middle_name_label = ThemeManager.create_label(self.name_frame, "Middle Name", bold=False)
+        self.middle_name_label.grid(row=0, column=1, sticky="w", pady=(0, 5))
+        
+        self.middle_name_entry = ThemeManager.create_entry(self.name_frame, "Middle name (optional)")
+        self.middle_name_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=(0, 5))
+        
+        # Last Name
+        self.last_name_label = ThemeManager.create_label(self.name_frame, "Last Name*", bold=False)
+        self.last_name_label.grid(row=0, column=2, sticky="w", pady=(0, 5))
+        
+        self.last_name_entry = ThemeManager.create_entry(self.name_frame, "Last name")
+        self.last_name_entry.grid(row=1, column=2, sticky="ew", padx=(5, 0), pady=(0, 5))
+        
+        # Add input validation callbacks for name fields
+        self.first_name_entry.bind('<KeyRelease>', lambda e: self.validate_name_input(e, self.first_name_entry))
+        self.middle_name_entry.bind('<KeyRelease>', lambda e: self.validate_name_input(e, self.middle_name_entry))
+        self.last_name_entry.bind('<KeyRelease>', lambda e: self.validate_name_input(e, self.last_name_entry))
         
         # Gender
         self.gender_label = ThemeManager.create_label(self.form_card, "Gender", bold=True)
@@ -253,6 +130,9 @@ class InputPage(ctk.CTkFrame):
         self.age_entry = ThemeManager.create_entry(self.form_card, "Enter your age")
         self.age_entry.grid(row=5, column=0, sticky="ew", padx=20, pady=(0, 15))
         
+        # Add input validation for age (integers only)
+        self.age_entry.bind('<KeyRelease>', lambda e: self.validate_integer_input(e, self.age_entry))
+        
         # Height
         self.height_label = ThemeManager.create_label(self.form_card, "Height (cm)", bold=True)
         self.height_label.grid(row=4, column=1, sticky="w", padx=20, pady=(0, 5))
@@ -260,12 +140,18 @@ class InputPage(ctk.CTkFrame):
         self.height_entry = ThemeManager.create_entry(self.form_card, "Enter your height")
         self.height_entry.grid(row=5, column=1, sticky="ew", padx=20, pady=(0, 15))
         
+        # Add input validation for height (numbers only)
+        self.height_entry.bind('<KeyRelease>', lambda e: self.validate_numeric_input(e, self.height_entry))
+        
         # Weight
         self.weight_label = ThemeManager.create_label(self.form_card, "Weight (kg)", bold=True)
         self.weight_label.grid(row=6, column=0, sticky="w", padx=20, pady=(0, 5))
         
         self.weight_entry = ThemeManager.create_entry(self.form_card, "Enter your weight")
         self.weight_entry.grid(row=7, column=0, sticky="ew", padx=20, pady=(0, 15))
+        
+        # Add input validation for weight (numbers only)
+        self.weight_entry.bind('<KeyRelease>', lambda e: self.validate_numeric_input(e, self.weight_entry))
         
         # Goal
         self.goal_label = ThemeManager.create_label(self.form_card, "Your Goal", bold=True)
@@ -336,10 +222,75 @@ class InputPage(ctk.CTkFrame):
         )
         self.privacy_text.grid(row=3, column=0, pady=(20, 10))
         
+    def validate_name(self, name):
+        """Validate that name contains only letters, spaces, hyphens, and apostrophes"""
+        if not name:
+            return False
+        # Allow letters, spaces, hyphens, apostrophes, and periods (for initials)
+        import re
+        return re.match(r"^[a-zA-Z\s\-'.]+$", name) is not None
+    
+    def validate_numeric(self, value):
+        """Validate that value is a valid number (integer or float)"""
+        if not value:
+            return False
+        try:
+            float(value)
+            return True
+        except ValueError:
+            return False
+    
+    def validate_integer(self, value):
+        """Validate that value is a valid positive integer"""
+        if not value:
+            return False
+        try:
+            int_val = int(value)
+            return int_val > 0
+        except ValueError:
+            return False
+    
+    def validate_name_input(self, event, entry_widget):
+        """Real-time validation for name input fields"""
+        current_value = entry_widget.get()
+        if current_value and not self.validate_name(current_value):
+            # Change border color to indicate error
+            entry_widget.configure(border_color="red")
+        else:
+            # Reset to default border color
+            entry_widget.configure(border_color=("gray70", "gray30"))
+    
+    def validate_numeric_input(self, event, entry_widget):
+        """Real-time validation for numeric input fields"""
+        current_value = entry_widget.get()
+        if current_value and not self.validate_numeric(current_value):
+            # Change border color to indicate error
+            entry_widget.configure(border_color="red")
+        else:
+            # Reset to default border color
+            entry_widget.configure(border_color=("gray70", "gray30"))
+    
+    def validate_integer_input(self, event, entry_widget):
+        """Real-time validation for integer input fields"""
+        current_value = entry_widget.get()
+        if current_value:
+            try:
+                int(current_value)
+                # Reset to default border color if valid
+                entry_widget.configure(border_color=("gray70", "gray30"))
+            except ValueError:
+                # Change border color to indicate error
+                entry_widget.configure(border_color="red")
+        else:
+            # Reset to default border color if empty
+            entry_widget.configure(border_color=("gray70", "gray30"))
+        
     def submit_details(self):
         """Validate and submit user details"""
         # Get form values
-        name = self.name_entry.get().strip()
+        first_name = self.first_name_entry.get().strip()
+        middle_name = self.middle_name_entry.get().strip()
+        last_name = self.last_name_entry.get().strip()
         age = self.age_entry.get().strip()
         weight = self.weight_entry.get().strip()
         height = self.height_entry.get().strip()
@@ -347,38 +298,69 @@ class InputPage(ctk.CTkFrame):
         goal = self.goal_dropdown.get()
         activity_level = self.activity_dropdown.get()
         
-        # Collect selected allergies
-        # allergies = []
-        # for allergy, var in self.allergy_vars.items():
-        #     if var.get():
-        #         allergies.append(allergy)
+        # Combine names into full name
+        name_parts = [first_name]
+        if middle_name:  # Add middle name only if provided
+            name_parts.append(middle_name)
+        name_parts.append(last_name)
+        full_name = " ".join(name_parts)
         
         # Validation
-        if not name:
-            messagebox.showerror("Input Error", "Name cannot be empty. Please enter your name.")
+        # Name validation
+        if not first_name:
+            messagebox.showerror("Input Error", "First name is required.")
             return
-        if not age.isdigit():
+        if not self.validate_name(first_name):
+            messagebox.showerror("Input Error", "First name can only contain letters, spaces, hyphens, and apostrophes.")
+            return
+            
+        if middle_name and not self.validate_name(middle_name):
+            messagebox.showerror("Input Error", "Middle name can only contain letters, spaces, hyphens, and apostrophes.")
+            return
+            
+        if not last_name:
+            messagebox.showerror("Input Error", "Last name is required.")
+            return
+        if not self.validate_name(last_name):
+            messagebox.showerror("Input Error", "Last name can only contain letters, spaces, hyphens, and apostrophes.")
+            return
+        
+        # Age validation
+        if not age:
+            messagebox.showerror("Input Error", "Age is required.")
+            return
+        if not self.validate_integer(age):
             messagebox.showerror("Input Error", "Age must be a valid positive integer.")
             return
         if int(age) <= 0 or int(age) > 120:
             messagebox.showerror("Input Error", "Age must be between 1 and 120.")
             return
-        if not weight.replace('.', '', 1).isdigit():
+            
+        # Weight validation
+        if not weight:
+            messagebox.showerror("Input Error", "Weight is required.")
+            return
+        if not self.validate_numeric(weight):
             messagebox.showerror("Input Error", "Weight must be a valid number.")
             return
         if float(weight) <= 0 or float(weight) > 500:
             messagebox.showerror("Input Error", "Weight must be a positive number less than or equal to 500 kg.")
             return
-        if not height.replace('.', '', 1).isdigit():
+            
+        # Height validation
+        if not height:
+            messagebox.showerror("Input Error", "Height is required.")
+            return
+        if not self.validate_numeric(height):
             messagebox.showerror("Input Error", "Height must be a valid number.")
             return
         if float(height) <= 0 or float(height) > 300:
             messagebox.showerror("Input Error", "Height must be a positive number less than or equal to 300 cm.")
             return
             
-        # Update the state manager with form data
+        # Update the state manager with form data (using combined full name)
         self.controller.state_manager.update_user_data(
-            name=name,
+            name=full_name,
             gender=gender,
             age=age,
             weight=weight,
@@ -403,8 +385,19 @@ class InputPage(ctk.CTkFrame):
         user_data = self.controller.state_manager.user_data
         
         if user_data["name"]:
-            self.name_entry.delete(0, "end")
-            self.name_entry.insert(0, user_data["name"])
+            # Split the full name into parts for the separate fields
+            name_parts = user_data["name"].split()
+            if len(name_parts) >= 1:
+                self.first_name_entry.delete(0, "end")
+                self.first_name_entry.insert(0, name_parts[0])
+            if len(name_parts) >= 3:  # First, Middle, Last
+                self.middle_name_entry.delete(0, "end")
+                self.middle_name_entry.insert(0, " ".join(name_parts[1:-1]))
+                self.last_name_entry.delete(0, "end")
+                self.last_name_entry.insert(0, name_parts[-1])
+            elif len(name_parts) == 2:  # First, Last (no middle name)
+                self.last_name_entry.delete(0, "end")
+                self.last_name_entry.insert(0, name_parts[1])
             
         self.gender_var.set(user_data["gender"])
         
@@ -436,13 +429,13 @@ if __name__ == "__main__":
         class StateManager:
             def __init__(self):
                 self.user_data = {
-                    "name": "John Doe",
+                    "name": "John Michael Doe",  # This will be split into first, middle, last
                     "gender": "male",
                     "age": "32",
                     "weight": "75",
                     "height": "178",
                     "goal": "Maintain Weight",
-                    "activity_level": "Moderately active",
+                    "activity_level": "Moderately active (moderate exercise/sports 3-5 days/week)",
                     "allergies": ["Dairy", "Peanuts"]
                 }
                 
