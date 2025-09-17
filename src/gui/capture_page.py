@@ -58,7 +58,7 @@ class CaptureCard(ctk.CTkFrame):
     """Individual capture card for front/side poses"""
     
     def __init__(self, parent, pose_type, pose_emoji, instructions):
-        super().__init__(parent, corner_radius=16, fg_color="white", border_width=2, border_color=ThemeManager.GRAY_LIGHT)
+        super().__init__(parent, corner_radius=20, fg_color="white", border_width=3, border_color=ThemeManager.GRAY_LIGHT, width=450, height=600)
         
         self.pose_type = pose_type
         self.is_captured = False
@@ -70,66 +70,66 @@ class CaptureCard(ctk.CTkFrame):
         
         # Header
         self.header = ctk.CTkFrame(self, fg_color="transparent")
-        self.header.grid(row=0, column=0, sticky="ew", padx=24, pady=(24, 12))
+        self.header.grid(row=0, column=0, sticky="ew", padx=32, pady=(32, 16))
         
         self.icon_label = ctk.CTkLabel(
             self.header,
             text=pose_emoji,
-            font=ctk.CTkFont(size=32)
+            font=ctk.CTkFont(size=40)
         )
         self.icon_label.grid(row=0, column=0, sticky="w")
         
         self.title_label = ctk.CTkLabel(
             self.header,
             text=f"{pose_type.title()} View",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=ctk.CTkFont(size=32, weight="bold"),
             text_color=ThemeManager.GRAY_DARK
         )
-        self.title_label.grid(row=0, column=1, sticky="w", padx=(12, 0))
+        self.title_label.grid(row=0, column=1, sticky="w", padx=(16, 0))
         
         # Status indicator
         self.status_frame = ctk.CTkFrame(
             self.header,
             fg_color=ThemeManager.GRAY_LIGHT,
-            corner_radius=12,
-            height=24
+            corner_radius=16,
+            height=32
         )
         self.status_frame.grid(row=0, column=2, sticky="e")
         
         self.status_label = ctk.CTkLabel(
             self.status_frame,
             text="Not Captured",
-            font=ctk.CTkFont(size=10, weight="bold"),
+            font=ctk.CTkFont(size=14, weight="bold"),
             text_color=ThemeManager.GRAY_DARK,
-            padx=12,
-            pady=4
+            padx=20,
+            pady=8
         )
         self.status_label.pack()
         
         self.header.grid_columnconfigure(1, weight=1)
         
         # Content area (image or placeholder)
-        self.content_frame = ctk.CTkFrame(self, fg_color=ThemeManager.SECONDARY_COLOR, corner_radius=12)
-        self.content_frame.grid(row=1, column=0, sticky="nsew", padx=24, pady=(0, 12))
+        self.content_frame = ctk.CTkFrame(self, fg_color=ThemeManager.SECONDARY_COLOR, corner_radius=16)
+        self.content_frame.grid(row=1, column=0, sticky="nsew", padx=32, pady=(0, 16))
         
         # Placeholder content
         self.placeholder_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        self.placeholder_frame.pack(expand=True, fill="both", padx=32, pady=32)
+        self.placeholder_frame.pack(expand=True, fill="both", padx=40, pady=40)
         
         self.placeholder_icon = ctk.CTkLabel(
             self.placeholder_frame,
             text="📷",
-            font=ctk.CTkFont(size=48)
+            font=ctk.CTkFont(size=64)
         )
-        self.placeholder_icon.pack(pady=(0, 16))
+        self.placeholder_icon.pack(pady=(0, 20))
         
         self.placeholder_text = ctk.CTkLabel(
             self.placeholder_frame,
             text=instructions,
-            font=ctk.CTkFont(size=14),
+            font=ctk.CTkFont(size=20),
             text_color=ThemeManager.GRAY_DARK,
             justify="center",
-            wraplength=200
+            wraplength=300
         )
         self.placeholder_text.pack()
         
@@ -142,35 +142,35 @@ class CaptureCard(ctk.CTkFrame):
         
         # Action buttons
         self.buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.buttons_frame.grid(row=2, column=0, sticky="ew", padx=24, pady=(0, 24))
+        self.buttons_frame.grid(row=2, column=0, sticky="ew", padx=32, pady=(0, 32))
         self.buttons_frame.grid_columnconfigure((0, 1), weight=1)
         
         # Capture button
         self.capture_button = ctk.CTkButton(
             self.buttons_frame,
-            text=f"📷 Capture {pose_type.title()}",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            height=44,
-            corner_radius=22,
+            text=f"� Start Camera",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            height=56,
+            corner_radius=28,
             fg_color=ThemeManager.PRIMARY_COLOR,
             hover_color=ThemeManager.PRIMARY_HOVER
         )
-        self.capture_button.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        self.capture_button.grid(row=0, column=0, sticky="ew", padx=(0, 8))
         
         # Upload button
         self.upload_button = ctk.CTkButton(
             self.buttons_frame,
             text="📁 Upload",
-            font=ctk.CTkFont(size=14),
-            height=44,
-            corner_radius=22,
+            font=ctk.CTkFont(size=18),
+            height=56,
+            corner_radius=28,
             fg_color="transparent",
-            border_width=2,
+            border_width=3,
             border_color=ThemeManager.GRAY_LIGHT,
             text_color=ThemeManager.GRAY_DARK,
             hover_color=ThemeManager.GRAY_LIGHT
         )
-        self.upload_button.grid(row=0, column=1, sticky="ew", padx=(6, 0))
+        self.upload_button.grid(row=0, column=1, sticky="ew", padx=(8, 0))
     
     def set_captured(self, image=None, image_path=None):
         """Mark as captured and display image"""
@@ -195,12 +195,12 @@ class CaptureCard(ctk.CTkFrame):
                     pil_image = image
                     
                 # Resize image to fit
-                pil_image.thumbnail((300, 400), Image.Resampling.LANCZOS)
+                pil_image.thumbnail((400, 500), Image.Resampling.LANCZOS)
                 photo = ImageTk.PhotoImage(pil_image)
                 
                 self.image_label.configure(image=photo)
                 self.image_label.image = photo  # Keep reference
-                self.image_label.pack(expand=True, fill="both", padx=16, pady=16)
+                self.image_label.pack(expand=True, fill="both", padx=20, pady=20)
             except Exception as e:
                 print(f"Error loading image: {e}")
         
@@ -221,10 +221,19 @@ class CaptureCard(ctk.CTkFrame):
         
         # Hide image and show placeholder
         self.image_label.pack_forget()
-        self.placeholder_frame.pack(expand=True, fill="both", padx=32, pady=32)
+        self.placeholder_frame.pack(expand=True, fill="both", padx=40, pady=40)
         
         # Reset button text
-        self.capture_button.configure(text=f"📷 Capture {self.pose_type.title()}")
+        self.capture_button.configure(text=f"� Start Camera")
+    
+    def update_button_text(self, is_camera_active, is_captured):
+        """Update button text based on camera and capture state"""
+        if is_captured:
+            self.capture_button.configure(text=f"🔄 Recapture")
+        elif is_camera_active:
+            self.capture_button.configure(text=f"⏹️ Stop Camera")
+        else:
+            self.capture_button.configure(text=f"📹 Start Camera")
 
 
 class LiveCameraView(ctk.CTkFrame):
@@ -661,10 +670,15 @@ class CapturePage(ctk.CTkFrame):
             )
         
         # Update camera instructions
-        if self.current_step == 1:
-            self.camera_view.show_instruction("Stand facing the camera", "top")
-        else:
-            self.camera_view.show_instruction("Turn to your right side", "top")
+        # if self.current_step == 1:
+        #     self.camera_view.show_instruction("Stand facing the camera", "top")
+        # else:
+        #     self.camera_view.show_instruction("Turn to your right side", "top")
+    
+    def _update_button_states(self):
+        """Update capture button states for both cards"""
+        self.front_card.update_button_text(self.is_camera_active, self.front_captured)
+        self.side_card.update_button_text(self.is_camera_active, self.side_captured)
     
     def _handle_capture(self, pose_type):
         """Handle capture button click"""
@@ -672,11 +686,19 @@ class CapturePage(ctk.CTkFrame):
             self._recapture_front()
         elif pose_type == "side" and self.side_captured:
             self._recapture_side()
+        elif self.is_camera_active:
+            self._stop_capture()
+            self._update_button_states()
         else:
             self._start_capture(pose_type)
     
     def _handle_upload(self, pose_type):
         """Handle upload button click - ensures same output format as capture"""
+        # Stop camera if active to prevent MediaPipe conflicts
+        camera_was_active = self.is_camera_active
+        if self.is_camera_active:
+            self._stop_capture()
+            
         file_path = filedialog.askopenfilename(
             title=f"Select {pose_type} pose image",
             filetypes=[
@@ -693,15 +715,21 @@ class CapturePage(ctk.CTkFrame):
                 target_card.upload_button.configure(text="🔄 Processing...", state="disabled")
                 self.update()  # Force UI update
                 
-                # Load image using OpenCV (same as capture process)
+                # Load image using OpenCV
                 frame = cv2.imread(file_path)
                 
                 if frame is None:
                     messagebox.showerror("Error", "Could not load the selected image. Please try another file.")
                     return
                 
-                # Process image through pose detector (same as capture)
-                processed_frame = self.detector.detect_pose(frame, draw_landmarks=True)
+                # Create a fresh detector instance to avoid MediaPipe state conflicts
+                temp_detector = AdvancedPoseDetector()
+                
+                # Process image through pose detector
+                processed_frame = temp_detector.detect_pose(frame, draw_landmarks=True)
+                
+                # Clean up temporary detector
+                del temp_detector
                 
                 # Ensure output directory exists
                 os.makedirs(INPUT_FILES_DIR, exist_ok=True)
@@ -737,6 +765,9 @@ class CapturePage(ctk.CTkFrame):
                     target_card.upload_button.configure(text=original_button_text, state="normal")
                 except:
                     pass
+                
+                # Update button states after upload
+                self._update_button_states()
     
     def _start_capture(self, pose_type):
         """Start camera capture for specific pose"""
@@ -746,6 +777,7 @@ class CapturePage(ctk.CTkFrame):
             self.capture_thread.daemon = True
             self.capture_thread.start()
             self.camera_view.set_active(True)
+            self._update_button_states()
     
     def _stop_capture(self):
         """Stop camera capture"""
@@ -754,6 +786,7 @@ class CapturePage(ctk.CTkFrame):
             self.capture_thread.join(timeout=1)
         self.camera_view.set_active(False)
         self.camera_view.show_placeholder()
+        self._update_button_states()
     
     def _capture_loop(self, pose_type):
         """Main camera capture loop"""
@@ -838,6 +871,7 @@ class CapturePage(ctk.CTkFrame):
                 self.after_idle(lambda: self.side_card.set_captured(image_path=output_path))
             
             self.after_idle(self._update_ui_state)
+            self.after_idle(self._update_button_states)
             self.after_idle(lambda: messagebox.showinfo("Success", f"{pose_type.title()} pose captured!"))
             
         except Exception as e:
@@ -849,6 +883,7 @@ class CapturePage(ctk.CTkFrame):
         self.front_captured = False
         self.front_image_path = None
         self._update_ui_state()
+        self._update_button_states()
         self._start_capture("front")
     
     def _recapture_side(self):
@@ -857,6 +892,7 @@ class CapturePage(ctk.CTkFrame):
         self.side_captured = False
         self.side_image_path = None
         self._update_ui_state()
+        self._update_button_states()
         self._start_capture("side")
     
     def _restart_camera(self):
