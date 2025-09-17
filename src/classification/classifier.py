@@ -71,7 +71,8 @@ def calculate_somatotype(
     Description:
         The somatotype is a classification of body type into three categories:
         Endomorph (fatness), Mesomorph (muscularity), and Ectomorph (linearity).
-        This function computes the values for each category and determines the dominant somatotype.
+        This function computes the values for each category on a scale of 1-7 and determines 
+        the somatotype classification based on the triangle somatochart.
 
     Args:
         weight (float): Body weight in kilograms.
@@ -86,56 +87,107 @@ def calculate_somatotype(
 
     Returns:
         tuple: A tuple containing:
-            - endomorphy (float): The calculated endomorphy value.
-            - mesomorphy (float): The calculated mesomorphy value.
-            - ectomorphy (float): The calculated ectomorphy value.
-            - somatotype (str): The dominant somatotype category
-              ("Endomorph", "Mesomorph", "Ectomorph", or "Balanced").
+            - endomorphy (float): The calculated endomorphy value (1-7 scale).
+            - mesomorphy (float): The calculated mesomorphy value (1-7 scale).
+            - ectomorphy (float): The calculated ectomorphy value (1-7 scale).
+            - somatotype (str): The somatotype classification based on triangle somatochart.
     """
+    # Calculate raw values first
     k = 0.5
     sum_skinfold = waist * k
-    endomorphy = (
+    raw_endomorphy = (
         -0.7182
         + 0.1451 * sum_skinfold
         - 0.00068 * (sum_skinfold**2)
         + 0.0000014 * (sum_skinfold**3)
     )
 
-    mesomorphy = 2.0 * ((shoulder + chest + thigh) / stature) - 1.0
+    raw_mesomorphy = 2.0 * ((shoulder + chest + thigh) / stature) - 1.0
 
     cube_root_weight = weight ** (1 / 3)
     HWR = stature / cube_root_weight
 
     if HWR > 40.75:
-        ectomorphy = 0.732 * HWR - 28.58
+        raw_ectomorphy = 0.732 * HWR - 28.58
     elif HWR >= 38.25:
-        ectomorphy = 0.463 * HWR - 17.63
+        raw_ectomorphy = 0.463 * HWR - 17.63
     else:
-        ectomorphy = 0.1
+        raw_ectomorphy = 0.1
 
-    if endomorphy > mesomorphy and endomorphy > ectomorphy:
-        somatotype = "Endomorph"
-    elif mesomorphy > endomorphy and mesomorphy > ectomorphy:
-        somatotype = "Mesomorph"
-    elif ectomorphy > endomorphy and ectomorphy > mesomorphy:
-        somatotype = "Ectomorph"
-    else:
-        somatotype = "Balanced"
+    # Scale values to 1-7 range and ensure they're within bounds
+    def scale_to_range(value, min_val=-3, max_val=10):
+        """Scale a value to 1-7 range"""
+        scaled = ((value - min_val) / (max_val - min_val)) * 6 + 1
+        return max(1.0, min(7.0, scaled))
+
+    endomorphy = scale_to_range(raw_endomorphy)
+    mesomorphy = scale_to_range(raw_mesomorphy)
+    ectomorphy = scale_to_range(raw_ectomorphy)
+
+    # Determine somatotype classification based on triangle somatochart
+    def classify_somatotype(endo, meso, ecto):
+        """Classify somatotype based on the three component values"""
+        # Round to nearest 0.5 for classification
+        e = round(endo * 2) / 2
+        m = round(meso * 2) / 2
+        c = round(ecto * 2) / 2
+        
+        # Determine dominant components
+        max_val = max(e, m, c)
+        min_val = min(e, m, c)
+        
+        # Check for balanced type (all values within 1 point of each other)
+        if max_val - min_val <= 1.0:
+            if max_val <= 3.5:
+                return "Central"
+            else:
+                return "Balanced"
+        
+        # Determine primary and secondary components
+        components = [("Endo", e), ("Meso", m), ("Ecto", c)]
+        components.sort(key=lambda x: x[1], reverse=True)
+        
+        primary = components[0]
+        secondary = components[1]
+        
+        # If primary is significantly higher than secondary (>1.5 points)
+        if primary[1] - secondary[1] > 1.5:
+            if primary[0] == "Endo":
+                return "Endomorph"
+            elif primary[0] == "Meso":
+                return "Mesomorph"
+            else:
+                return "Ectomorph"
+        
+        # Mixed types based on two highest components
+        primary_name = primary[0]
+        secondary_name = secondary[0]
+        
+        if "Endo" in [primary_name, secondary_name] and "Meso" in [primary_name, secondary_name]:
+            return "Endo-Mesomorph" if e > m else "Meso-Endomorph"
+        elif "Meso" in [primary_name, secondary_name] and "Ecto" in [primary_name, secondary_name]:
+            return "Meso-Ectomorph" if m > c else "Ecto-Mesomorph"
+        elif "Endo" in [primary_name, secondary_name] and "Ecto" in [primary_name, secondary_name]:
+            return "Endo-Ectomorph" if e > c else "Ecto-Endomorph"
+        
+        return "Balanced"
+
+    somatotype = classify_somatotype(endomorphy, mesomorphy, ectomorphy)
 
     # Save results to a CSV file
     output_file = os.path.join(OUTPUT_FILES_DIR, "output_classification.csv")
     result_df = pd.DataFrame(
         {
-            "Endomorphy": [endomorphy],
-            "Mesomorphy": [mesomorphy],
-            "Ectomorphy": [ectomorphy],
+            "Endomorphy": [round(endomorphy, 1)],
+            "Mesomorphy": [round(mesomorphy, 1)],
+            "Ectomorphy": [round(ectomorphy, 1)],
             "Somatotype": [somatotype],
         }
     )
     result_df.to_csv(output_file, index=False)
     print(f"Results saved to {output_file}")
 
-    return endomorphy, mesomorphy, ectomorphy, somatotype
+    return round(endomorphy, 1), round(mesomorphy, 1), round(ectomorphy, 1), somatotype
 
 def main():
     """

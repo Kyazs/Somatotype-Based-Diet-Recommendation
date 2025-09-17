@@ -1,0 +1,169 @@
+wweia_food_category,wweia_food_category_description,Somatotype_Category
+1004,"Milk, reduced fat",dairy_proteins
+1002,"Milk, whole",dairy_proteins
+1006,"Milk, lowfat",dairy_proteins
+1008,"Milk, nonfat",dairy_proteins
+1202,"Flavored milk, whole",dairy_proteins
+1902,Plant-based milk,dairy_proteins
+1820,"Yogurt, regular",dairy_proteins
+1822,"Yogurt, Greek",dairy_proteins
+8412,"Dips, gravies, other sauces",other
+5802,Ice cream and frozen dairy desserts,dairy_proteins
+9007,Baby food: mixtures,other
+9010,Baby food: yogurt,dairy_proteins
+1206,"Flavored milk, lowfat",dairy_proteins
+1204,"Flavored milk, reduced fat",dairy_proteins
+1208,"Flavored milk, nonfat",dairy_proteins
+1402,Milk shakes and other dairy drinks,dairy_proteins
+7220,Smoothies and grain drinks,beverages
+9404,"Formula, prepared from powder",other
+9402,"Formula, ready-to-feed",other
+9999,Not included in a food category,other
+8008,Cream and cream substitutes,other
+8006,"Cream cheese, sour cream, whipped cream",dairy_proteins
+5804,Pudding,other
+5502,Cakes and pies,energy_dense
+1602,Cheese,dairy_proteins
+1604,Cottage/ricotta cheese,dairy_proteins
+3602,Pizza,energy_dense
+2502,Eggs and omelets,other
+3720,Cheese sandwiches,dairy_proteins
+6432,"Coleslaw, non-lettuce salads",vegetables
+2002,"Beef, excludes ground",other
+2004,Ground beef,other
+9008,Baby food: meat and dinners,other
+2602,Cold cuts and cured meats,other
+2604,Bacon,other
+2006,Pork,other
+3002,Meat mixed dishes,other
+8002,Butter and animal fats,other
+2008,"Lamb, goat, game",other
+2206,"Turkey, duck, other poultry",lean_proteins
+2202,"Chicken, whole pieces",lean_proteins
+2204,"Chicken patties, nuggets and tenders",lean_proteins
+2010,Liver and organ meats,other
+2606,Frankfurters,other
+2608,Sausages,other
+2402,Fish,lean_proteins
+2404,Shellfish,lean_proteins
+3404,Stir-fry and soy-based sauce mixtures,other
+3004,Poultry mixed dishes,other
+8410,"Pasta sauces, tomato-based",quick_carbs
+3006,Seafood mixed dishes,lean_proteins
+8404,Soy-based condiments,other
+3202,Rice mixed dishes,other
+3402,Fried rice and lo/chow mein,energy_dense
+3502,Burritos and tacos,other
+6411,Other dark green vegetables,vegetables
+3740,Deli and cured meat sandwiches,other
+3742,Meat and BBQ sandwiches,other
+3702,Burgers,other
+3704,Chicken fillet sandwiches,lean_proteins
+3730,Seafood sandwiches,lean_proteins
+3703,Frankfurter sandwiches,other
+3804,"Soups, broth-based",other
+3808,Ramen and Asian broth-based soups,other
+3806,"Soups, cream-based",other
+3706,Egg/breakfast sandwiches,other
+2802,"Beans, peas, legumes",complex_carbs
+3102,"Bean, pea, legume dishes",other
+5004,"Tortilla, corn, other chips",processed_foods
+3104,Vegetable dishes,other
+2806,Soy and meat-alternative products,other
+1904,Plant-based yogurt,dairy_proteins
+8406,Mustard and other condiments,other
+3744,Vegetable sandwiches/burgers,other
+2804,Nuts and seeds,healthy_fats
+3722,Peanut butter and jelly sandwiches,healthy_fats
+7204,Fruit drinks,fruits
+4202,Yeast breads,quick_carbs
+4204,Rolls and buns,other
+5506,"Doughnuts, sweet rolls, pastries",healthy_fats
+4206,Bagels and English muffins,quick_carbs
+3208,Turnovers and other grain-based items,other
+5202,"Crackers, excludes saltines",quick_carbs
+5504,Cookies and brownies,energy_dense
+4402,"Biscuits, muffins, quick breads",quick_carbs
+4208,Tortillas,other
+4404,"Pancakes, waffles, French toast",quick_carbs
+5402,Cereal bars,quick_carbs
+5404,Nutrition bars,other
+9012,Baby food: snacks and sweets,other
+5204,Saltine crackers,quick_carbs
+5008,Pretzels/snack mix,other
+5002,Potato chips,processed_foods
+5006,Popcorn,other
+4004,"Pasta, noodles, cooked grains",quick_carbs
+4804,Grits and other cooked cereals,quick_carbs
+4802,Oatmeal,complex_carbs
+4002,Rice,other
+4602,"Ready-to-eat cereal, higher sugar (>21.2g/100g)",quick_carbs
+4604,"Ready-to-eat cereal, lower sugar (=<21.2g/100g)",quick_carbs
+9002,Baby food: cereals,quick_carbs
+3506,Other Mexican mixed dishes,other
+3504,Nachos,other
+3406,"Egg rolls, dumplings, sushi",other
+3204,"Pasta mixed dishes, excludes macaroni and cheese",quick_carbs
+3206,Macaroni and cheese,dairy_proteins
+6012,Citrus fruits,fruits
+8806,"Jams, syrups, toppings",other
+7002,Citrus juice,fruits
+7006,Other fruit juice,fruits
+6016,Dried fruits,fruits
+6018,Other fruits and fruit salads,vegetables
+6002,Apples,fruits
+6420,Other vegetables and combinations,vegetables
+6004,Bananas,fruits
+6014,Melons,fruits
+6006,Grapes,fruits
+6024,Mango and papaya,other
+6008,Peaches and nectarines,other
+6020,Pears,other
+6022,Pineapple,fruits
+6011,Blueberries and other berries,fruits
+6009,Strawberries,fruits
+5806,"Gelatins, ices, sorbets",other
+7004,Apple juice,fruits
+9004,Baby food: fruit,fruits
+9202,Baby juice,beverages
+6802,"White potatoes, baked or boiled",other
+6806,Mashed potatoes and white potato mixtures,other
+6804,French fries and other fried white potatoes,energy_dense
+6418,Other starchy vegetables,vegetables
+6430,Fried vegetables,vegetables
+6407,Broccoli,vegetables
+6410,Lettuce and lettuce salads,vegetables
+6409,Spinach,vegetables
+6404,Carrots,vegetables
+7008,Vegetable juice,beverages
+6406,Other red and orange vegetables,vegetables
+6402,Tomatoes,vegetables
+8408,"Olives, pickles, pickled vegetables",healthy_fats
+8402,Tomato-based condiments,vegetables
+6412,String beans,complex_carbs
+6413,Cabbage,other
+6416,Corn,other
+6414,Onions,other
+9006,Baby food: vegetables,vegetables
+8004,Margarine,other
+8010,Mayonnaise,other
+8012,Salad dressings and vegetable oils,healthy_fats
+6489,Vegetables on a sandwich,vegetables
+8802,Sugars and honey,other
+8804,Sugar substitutes,other
+5704,Candy not containing chocolate,energy_dense
+5702,Candy containing chocolate,energy_dense
+7302,Coffee,beverages
+7304,Tea,beverages
+7202,Soft drinks,beverages
+7102,Diet soft drinks,beverages
+7802,Flavored or carbonated water,beverages
+7106,Other diet drinks,beverages
+7502,Beer,other
+7506,Liquor and cocktails,other
+7504,Wine,other
+7804,Enhanced water,beverages
+7208,Nutritional beverages,beverages
+9802,Protein and nutritional powders,other
+7206,Sport and energy drinks,beverages
+7104,Diet sport and energy drinks,beverages

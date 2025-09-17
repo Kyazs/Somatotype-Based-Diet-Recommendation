@@ -1,0 +1,30 @@
+OPTIMIZED DIET RECOMMENDATION DATABASE REPORT
+==================================================
+
+Original FNDDS foods: 5,403
+Optimized foods: 5,130
+Reduction: 273 foods (5.1%)
+
+ENHANCED CATEGORY DISTRIBUTION:
+  quick_carbs: 1293 foods (25.2%)
+  balanced_foods: 893 foods (17.4%)
+  healthy_fats: 510 foods (9.9%)
+  vegetables: 464 foods (9.0%)
+  complex_carbs: 448 foods (8.7%)
+  lean_proteins: 338 foods (6.6%)
+  processed_foods: 303 foods (5.9%)
+  energy_dense: 289 foods (5.6%)
+  complete_proteins: 205 foods (4.0%)
+  dairy_proteins: 163 foods (3.2%)
+  fruits: 132 foods (2.6%)
+  weight_loss_friendly: 92 foods (1.8%)
+
+GOAL SUITABILITY:
+  High weight loss score (>=7): 304
+  High weight gain score (>=7): 1712
+  High maintenance score (>=7): 1970
+
+SOMATOTYPE SUITABILITY:
+  High ectomorph score (>=7): 722
+  High mesomorph score (>=7): 540
+  High endomorph score (>=7): 722

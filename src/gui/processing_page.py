@@ -1,6 +1,7 @@
 """
 Processing Page for the Diet Recommendation System.
 Shows animated processing steps as data is analyzed.
+Follows the original clean design theme with enhanced UX improvements.
 """
 import customtkinter as ctk
 import subprocess
@@ -15,15 +16,15 @@ PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.append(PROJECT_DIR)
 
 from src.utils.utils import CNN_DIR, VENV_DIR, CLASSIFIER_DIR, RECOMMENDER_DIR
-from utils.theme_manager import ThemeManager, IMAGES_DIR
+from src.utils.theme_manager import ThemeManager
 
 class ProcessingStep(ctk.CTkFrame):
-    """A visual step in the processing pipeline"""
+    """Enhanced processing step with visual storytelling and smooth animations"""
     
-    def __init__(self, parent, step_title, step_icon=None, step_description=""):
-        super().__init__(parent, fg_color="transparent")
+    def __init__(self, parent, step_title, step_icon="●", step_description=""):
+        super().__init__(parent, fg_color=ThemeManager.SECONDARY_COLOR, corner_radius=12, border_width=1, border_color=ThemeManager.GRAY_LIGHT)
         
-        # Configure grid
+        # Configure grid with proper padding
         self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -34,42 +35,47 @@ class ProcessingStep(ctk.CTkFrame):
         self.STATUS_COMPLETE = "complete"
         self.STATUS_ERROR = "error"
         
-        # Icon frame (left side)
+        # Store the original icon
+        self.original_icon = step_icon
+        self.is_active = False
+        
+        # Icon frame (left side) - enhanced visual design
         self.icon_frame = ctk.CTkFrame(
             self,
-            width=40,
-            height=40,
-            corner_radius=20,
-            fg_color=ThemeManager.GRAY_LIGHT
+            width=48,
+            height=48,
+            corner_radius=24,
+            fg_color=ThemeManager.GRAY_LIGHT,
+            border_width=0
         )
-        self.icon_frame.grid(row=0, column=0, padx=(0, 15), sticky="nw")
-        self.icon_frame.grid_propagate(False)  # Maintain size
+        self.icon_frame.grid(row=0, column=0, padx=(20, 12), pady=16, sticky="n")
+        self.icon_frame.grid_propagate(False)
         
-        # Icon label
+        # Icon label with enhanced typography
         self.icon_text = ctk.CTkLabel(
             self.icon_frame,
-            text="●",
-            font=ctk.CTkFont(size=20),
+            text=step_icon,
+            font=ctk.CTkFont(size=18),
             text_color=ThemeManager.GRAY_MEDIUM
         )
         self.icon_text.place(relx=0.5, rely=0.5, anchor="center")
         
-        # Content frame (right side)
+        # Content frame (right side) - following original card design
         self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.content_frame.grid(row=0, column=1, sticky="ew")
+        self.content_frame.grid(row=0, column=1, sticky="ew", padx=(0, 20), pady=16)
         self.content_frame.grid_columnconfigure(0, weight=1)
         
-        # Title
+        # Title with enhanced accessibility (larger when active)
         self.title = ctk.CTkLabel(
             self.content_frame,
             text=step_title,
             font=ThemeManager.get_label_font(),
-            text_color=ThemeManager.GRAY_DARK,
+            text_color=ThemeManager.GRAY_MEDIUM,
             anchor="w"
         )
         self.title.grid(row=0, column=0, sticky="w")
         
-        # Description
+        # Description with better contrast
         self.description = ctk.CTkLabel(
             self.content_frame,
             text=step_description,
@@ -77,24 +83,24 @@ class ProcessingStep(ctk.CTkFrame):
             text_color=ThemeManager.GRAY_MEDIUM,
             anchor="w",
             justify="left",
-            wraplength=400
+            wraplength=350
         )
-        self.description.grid(row=1, column=0, sticky="w", pady=(2, 5))
+        self.description.grid(row=1, column=0, sticky="w", pady=(4, 12))
         
-        # Progress bar
+        # Enhanced progress bar with smooth transitions
         self.progress_container = ctk.CTkFrame(
             self.content_frame,
             fg_color=ThemeManager.GRAY_LIGHT,
             height=6,
             corner_radius=3
         )
-        self.progress_container.grid(row=2, column=0, sticky="ew", pady=(0, 10))
+        self.progress_container.grid(row=2, column=0, sticky="ew")
         self.progress_container.grid_propagate(False)
         
-        # Animated progress fill
+        # Progress fill with color-coded states
         self.progress_fill = ctk.CTkFrame(
             self.progress_container,
-            fg_color=ThemeManager.PRIMARY_COLOR,
+            fg_color=ThemeManager.GRAY_LIGHT,
             height=6,
             corner_radius=3
         )
@@ -103,51 +109,107 @@ class ProcessingStep(ctk.CTkFrame):
         # Set initial state
         self.current_status = self.STATUS_WAITING
         self.progress = 0.0
+        self.is_animating = False
     
     def update_status(self, status, description=None, progress=None):
-        """Update the step's status and appearance"""
+        """Update the step's status and appearance with smooth animations"""
         self.current_status = status
         
         # Update description if provided
         if description:
             self.description.configure(text=description)
             
-        # Update progress bar if provided
+        # Animate progress bar if provided
         if progress is not None and 0 <= progress <= 1:
-            self.progress = progress
-            self.progress_fill.place(relwidth=progress)
+            self.animate_progress_to(progress)
             
-        # Update appearance based on status
+        # Color-coded states following original theme with enhanced contrast
         if status == self.STATUS_WAITING:
+            self.configure(fg_color=ThemeManager.SECONDARY_COLOR)
             self.icon_frame.configure(fg_color=ThemeManager.GRAY_LIGHT)
-            self.icon_text.configure(text="●", text_color=ThemeManager.GRAY_MEDIUM)
-            self.title.configure(text_color=ThemeManager.GRAY_DARK)
-            self.progress_fill.configure(fg_color=ThemeManager.PRIMARY_COLOR)
+            self.icon_text.configure(text=self.original_icon, text_color=ThemeManager.GRAY_MEDIUM)
+            self.title.configure(text_color=ThemeManager.GRAY_MEDIUM, font=ThemeManager.get_label_font())
+            self.progress_fill.configure(fg_color=ThemeManager.GRAY_LIGHT)
             
         elif status == self.STATUS_PROCESSING:
+            # Blue for in progress - enhanced visual feedback
+            self.configure(fg_color="white", border_color=ThemeManager.PRIMARY_COLOR)
             self.icon_frame.configure(fg_color=ThemeManager.PRIMARY_COLOR)
-            self.icon_text.configure(text="⟳", text_color="white")
-            self.title.configure(text_color=ThemeManager.PRIMARY_COLOR)
+            self.icon_text.configure(text_color="white")
+            # Bold and larger for active step (accessibility)
+            self.title.configure(text_color=ThemeManager.GRAY_DARK, font=ThemeManager.get_subtitle_font())
             self.progress_fill.configure(fg_color=ThemeManager.PRIMARY_COLOR)
+            self.animate_processing_icon()
             
         elif status == self.STATUS_COMPLETE:
+            # Green for completed
+            self.configure(fg_color=ThemeManager.SECONDARY_COLOR, border_color=ThemeManager.SUCCESS_COLOR)
             self.icon_frame.configure(fg_color=ThemeManager.SUCCESS_COLOR)
             self.icon_text.configure(text="✓", text_color="white")
-            self.title.configure(text_color=ThemeManager.SUCCESS_COLOR)
+            self.title.configure(text_color=ThemeManager.GRAY_DARK, font=ThemeManager.get_label_font())
             self.progress_fill.configure(fg_color=ThemeManager.SUCCESS_COLOR)
-            self.progress_fill.place(relwidth=1.0)  # Full width
+            self.animate_checkmark()
             
         elif status == self.STATUS_ERROR:
-            self.icon_frame.configure(fg_color=ThemeManager.DANGER_COLOR)
-            self.icon_text.configure(text="!", text_color="white")
-            self.title.configure(text_color=ThemeManager.DANGER_COLOR)
-            self.progress_fill.configure(fg_color=ThemeManager.DANGER_COLOR)
+            # Orange for warning/error
+            self.configure(fg_color=ThemeManager.SECONDARY_COLOR, border_color=ThemeManager.WARNING_COLOR)
+            self.icon_frame.configure(fg_color=ThemeManager.WARNING_COLOR)
+            self.icon_text.configure(text="⚠", text_color="white")
+            self.title.configure(text_color=ThemeManager.WARNING_COLOR, font=ThemeManager.get_label_font())
+            self.progress_fill.configure(fg_color=ThemeManager.WARNING_COLOR)
+    
+    def animate_progress_to(self, target_progress):
+        """Smoothly animate progress bar to target value"""
+        if self.is_animating:
+            return
             
+        self.is_animating = True
+        current_width = self.progress
+        
+        def animate_step():
+            nonlocal current_width
+            if current_width < target_progress:
+                current_width = min(current_width + 0.03, target_progress)  # Smoother animation
+                self.progress_fill.place(relx=0, rely=0, relwidth=current_width, relheight=1)
+                self.after(20, animate_step)  # Smoother 50fps
+            else:
+                self.progress = target_progress
+                self.is_animating = False
+                
+        animate_step()
+    
+    def animate_processing_icon(self):
+        """Enhanced pulsing animation for processing state"""
+        if self.current_status != self.STATUS_PROCESSING:
+            return
+            
+        def pulse():
+            if self.current_status != self.STATUS_PROCESSING:
+                return
+            # Smooth icon animation
+            icons = ["⚡", "⚡⚡", "⚡⚡⚡"]
+            icon_index = int((time.time() * 3) % len(icons))
+            if hasattr(self, 'icon_text'):
+                self.icon_text.configure(text=icons[icon_index])
+            
+            self.after(250, pulse)
+            
+        pulse()
+        
+    def animate_checkmark(self):
+        """Smooth fade-in effect for completion"""
+        def fade_in():
+            # Simple checkmark appearance with brief highlight
+            if hasattr(self, 'icon_text'):
+                self.icon_text.configure(text="✓")
+            
+        self.after(100, fade_in)
+
 class VisualCard(ctk.CTkFrame):
-    """Visual card that shows the current processing step with animation"""
+    """Dynamic visual card that changes content based on current processing step"""
     
     def __init__(self, parent):
-        super().__init__(parent, corner_radius=10, fg_color=ThemeManager.SECONDARY_COLOR)
+        super().__init__(parent, fg_color=ThemeManager.SECONDARY_COLOR, corner_radius=12, border_width=1, border_color=ThemeManager.GRAY_LIGHT)
         
         # Configure grid
         self.grid_columnconfigure(0, weight=1)
@@ -155,869 +217,643 @@ class VisualCard(ctk.CTkFrame):
         self.grid_rowconfigure(1, weight=1)  # Content
         self.grid_rowconfigure(2, weight=0)  # Footer
         
-        # Header
+        # Header with dynamic title following original typography
         self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.header_frame.grid(row=0, column=0, padx=15, pady=(15, 0), sticky="ew")
+        self.header_frame.grid(row=0, column=0, padx=24, pady=(24, 0), sticky="ew")
         
         self.header = ctk.CTkLabel(
             self.header_frame,
-            text="Analyzing Your Data",
+            text="🔄 Initializing Analysis",
             font=ThemeManager.get_subtitle_font(),
             text_color=ThemeManager.PRIMARY_COLOR
         )
         self.header.grid(row=0, column=0, sticky="w")
         
-        # Content area where different visualizations will be shown
+        # Content area with dynamic visuals
         self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.content_frame.grid(row=1, column=0, padx=15, pady=10, sticky="nsew")
+        self.content_frame.grid(row=1, column=0, padx=24, pady=16, sticky="nsew")
+        self.content_frame.grid_columnconfigure(0, weight=1)
         
-        # Footer with estimate time
+        # Footer with enhanced time estimate
         self.footer_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.footer_frame.grid(row=2, column=0, padx=15, pady=(0, 15), sticky="ew")
+        self.footer_frame.grid(row=2, column=0, padx=24, pady=(0, 24), sticky="ew")
+        self.footer_frame.grid_columnconfigure(0, weight=1)
         
-        self.time_label = ctk.CTkLabel(
-            self.footer_frame,
-            text="Estimated time remaining: 30 seconds",
-            font=ThemeManager.get_small_font(),
-            text_color=ThemeManager.GRAY_MEDIUM
+        # Enhanced time estimate container
+        self.time_container = ctk.CTkFrame(
+            self.footer_frame, 
+            fg_color=ThemeManager.GRAY_LIGHT, 
+            corner_radius=8,
+            height=36
         )
-        self.time_label.grid(row=0, column=0)
+        self.time_container.grid(row=0, column=0, sticky="ew")
+        self.time_container.grid_columnconfigure(1, weight=1)
+        self.time_container.grid_propagate(False)
+        
+        # Pulsing clock icon
+        self.clock_icon = ctk.CTkLabel(
+            self.time_container,
+            text="🕐",
+            font=ctk.CTkFont(size=16)
+        )
+        self.clock_icon.grid(row=0, column=0, padx=(12, 8), pady=8)
+        
+        # Animated countdown
+        self.time_label = ctk.CTkLabel(
+            self.time_container,
+            text="Estimated time: 30 seconds",
+            font=ThemeManager.get_small_font(),
+            text_color=ThemeManager.GRAY_DARK
+        )
+        self.time_label.grid(row=0, column=1, padx=(0, 12), pady=8, sticky="w")
         
         # Visual elements for different steps
         self.visuals = {}
-        self.setup_visuals()
         self.current_visual = None
+        self.remaining_time = 30
+        self.setup_visuals()
         self.show_visual("initializing")
+        self.start_clock_animation()
         
     def setup_visuals(self):
-        """Set up different visual elements for each processing step"""
+        """Set up dynamic visual elements for each processing step"""
         
         # 1. Initializing visual
         init_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
+        init_frame.grid_columnconfigure(0, weight=1)
+        
+        init_icon = ctk.CTkLabel(
+            init_frame,
+            text="🚀",
+            font=ctk.CTkFont(size=48)
+        )
+        init_icon.grid(row=0, column=0, pady=(40, 20))
+        
         init_label = ctk.CTkLabel(
             init_frame,
-            text="Initializing analysis...",
-            font=ThemeManager.get_label_font()
+            text="Preparing analysis system...",
+            font=ThemeManager.get_label_font(),
+            text_color=ThemeManager.GRAY_DARK
         )
-        init_label.pack(pady=40)
+        init_label.grid(row=1, column=0, pady=(0, 40))
         self.visuals["initializing"] = init_frame
         
-        # 2. User data visual
+        # 2. User data visual - show entered details
         user_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        user_frame.grid_columnconfigure((0, 1), weight=1)
+        user_frame.grid_columnconfigure(0, weight=1)
         
-        fields = ["Name", "Age", "Gender", "Height", "Weight", "Goal"]
-        for i, field in enumerate(fields):
-            row, col = i // 2, i % 2
-            field_frame = ctk.CTkFrame(
-                user_frame,
-                fg_color=ThemeManager.BG_COLOR,
-                corner_radius=5
-            )
-            field_frame.grid(row=row, column=col, padx=10, pady=5, sticky="ew")
-            
-            field_name = ctk.CTkLabel(
-                field_frame,
-                text=field,
-                font=ThemeManager.get_small_font(),
-                text_color=ThemeManager.GRAY_MEDIUM
-            )
-            field_name.grid(row=0, column=0, padx=10, pady=(5, 0), sticky="w")
-            
-            field_value = ctk.CTkFrame(
-                field_frame,
-                height=10,
-                width=100,
-                # Fix: Use a light blue color instead of hex with alpha
-                fg_color=ThemeManager.GRAY_LIGHT,
-                corner_radius=3
-            )
-            field_value.grid(row=1, column=0, padx=10, pady=(5, 10), sticky="ew")
-            
-        self.visuals["user_data"] = user_frame
+        user_icon = ctk.CTkLabel(
+            user_frame,
+            text="👤",
+            font=ctk.CTkFont(size=36)
+        )
+        user_icon.grid(row=0, column=0, pady=(20, 15))
         
-        # 3. Image processing visual
+        # User details display card
+        self.user_details_card = ctk.CTkFrame(
+            user_frame, 
+            fg_color="white", 
+            corner_radius=8,
+            border_width=1,
+            border_color=ThemeManager.GRAY_LIGHT
+        )
+        self.user_details_card.grid(row=1, column=0, sticky="ew", padx=20, pady=10)
+        self.user_details_card.grid_columnconfigure(0, weight=1)
+        
+        self.user_details_label = ctk.CTkLabel(
+            self.user_details_card,
+            text="Age: 25 | Height: 170cm | Weight: 70kg\nGoal: Weight Management",
+            font=ThemeManager.get_small_font(),
+            text_color=ThemeManager.GRAY_DARK,
+            justify="center"
+        )
+        self.user_details_label.grid(row=0, column=0, padx=20, pady=16)
+        
+        self.visuals["user_input"] = user_frame
+        
+        # 3. Image processing - show silhouette preview
         img_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        img_frame.grid_columnconfigure((0, 1), weight=1)
+        img_frame.grid_columnconfigure(0, weight=1)
         
-        # Placeholder for front image with scanning animation
-        front_container = ctk.CTkFrame(
+        img_icon = ctk.CTkLabel(
             img_frame,
-            width=150,
-            height=200,
-            fg_color=ThemeManager.BG_COLOR,
-            corner_radius=5
+            text="📸",
+            font=ctk.CTkFont(size=36)
         )
-        front_container.grid(row=0, column=0, padx=10, pady=10)
-        front_container.grid_propagate(False)
+        img_icon.grid(row=0, column=0, pady=(20, 15))
         
-        front_label = ctk.CTkLabel(
-            front_container,
-            text="Front View",
-            font=ThemeManager.get_small_font()
-        )
-        front_label.pack(pady=(5, 0))
-        
-        front_img = ctk.CTkFrame(
-            front_container,
-            width=120,
-            height=160,
-            # Fix: Use a light blue color instead of hex with alpha
-            fg_color=ThemeManager.GRAY_LIGHT
-        )
-        front_img.pack(pady=10)
-        
-        # Animated scan line
-        self.front_scan = ctk.CTkFrame(
-            front_img,
-            height=4,
-            width=120,
-            fg_color=ThemeManager.PRIMARY_COLOR
-        )
-        self.front_scan.place(relx=0, rely=0, relwidth=1)
-        
-        # Placeholder for side image with scanning animation
-        side_container = ctk.CTkFrame(
+        # Image processing preview
+        img_preview_frame = ctk.CTkFrame(
             img_frame,
-            width=150,
-            height=200,
-            fg_color=ThemeManager.BG_COLOR,
-            corner_radius=5
+            fg_color="white",
+            corner_radius=8,
+            border_width=1,
+            border_color=ThemeManager.GRAY_LIGHT
         )
-        side_container.grid(row=0, column=1, padx=10, pady=10)
-        side_container.grid_propagate(False)
+        img_preview_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=10)
         
-        side_label = ctk.CTkLabel(
-            side_container,
-            text="Side View",
-            font=ThemeManager.get_small_font()
+        self.img_preview_label = ctk.CTkLabel(
+            img_preview_frame,
+            text="� Front View    📷 Side View\n🔍 Analyzing body contours...",
+            font=ThemeManager.get_small_font(),
+            text_color=ThemeManager.GRAY_DARK,
+            justify="center"
         )
-        side_label.pack(pady=(5, 0))
-        
-        side_img = ctk.CTkFrame(
-            side_container,
-            width=120,
-            height=160,
-            # Fix: Use a light blue color instead of hex with alpha
-            fg_color=ThemeManager.GRAY_LIGHT
-        )
-        side_img.pack(pady=10)
-        
-        # Animated scan line
-        self.side_scan = ctk.CTkFrame(
-            side_img,
-            height=4,
-            width=120,
-            fg_color=ThemeManager.PRIMARY_COLOR
-        )
-        self.side_scan.place(relx=0, rely=0, relwidth=1)
+        self.img_preview_label.grid(row=0, column=0, padx=20, pady=16)
         
         self.visuals["image_processing"] = img_frame
         
-        # 4. Measurements visual
-        measurements_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
+        # 4. Measurements - show numbers appearing
+        meas_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
+        meas_frame.grid_columnconfigure(0, weight=1)
         
-        body_metrics = [
-            ("Height", "175 cm"),
-            ("Chest", "95 cm"),
-            ("Waist", "80 cm"),
-            ("Hips", "95 cm"),
-            ("Thigh", "55 cm"),
-            ("Weight", "72 kg")
-        ]
-        
-        for i, (metric, value) in enumerate(body_metrics):
-            row, col = i // 3, i % 3
-            metric_frame = ctk.CTkFrame(
-                measurements_frame,
-                fg_color=ThemeManager.BG_COLOR,
-                corner_radius=5
-            )
-            metric_frame.grid(row=row, column=col, padx=10, pady=5, sticky="ew")
-            
-            metric_label = ctk.CTkLabel(
-                metric_frame,
-                text=metric,
-                font=ThemeManager.get_small_font(),
-                text_color=ThemeManager.GRAY_MEDIUM
-            )
-            metric_label.grid(row=0, column=0, padx=10, pady=(5, 0), sticky="w")
-            
-            metric_value = ctk.CTkLabel(
-                metric_frame,
-                text=value,
-                font=ThemeManager.get_label_font(),
-                text_color=ThemeManager.PRIMARY_COLOR
-            )
-            metric_value.grid(row=1, column=0, padx=10, pady=(0, 5), sticky="w")
-            
-        self.visuals["measurements"] = measurements_frame
-        
-        # 5. Somatotype visual
-        somatotype_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        
-        # Triangle visualization would go here - simplified for now
-        types_frame = ctk.CTkFrame(somatotype_frame, fg_color="transparent")
-        types_frame.pack(pady=10)
-        
-        # Three somatotype circles with percentages
-        types_frame.grid_columnconfigure((0, 1, 2), weight=1)
-        
-        # Ectomorph
-        ecto_frame = ctk.CTkFrame(types_frame, fg_color="transparent")
-        ecto_frame.grid(row=0, column=0, padx=15)
-        
-        ecto_circle = ctk.CTkFrame(
-            ecto_frame,
-            width=80,
-            height=80,
-            corner_radius=40,
-            fg_color=ThemeManager.BG_COLOR,
-            border_color=ThemeManager.PRIMARY_COLOR,
-            border_width=2
+        meas_icon = ctk.CTkLabel(
+            meas_frame,
+            text="📏",
+            font=ctk.CTkFont(size=36)
         )
-        ecto_circle.pack(pady=5)
-        ecto_circle.grid_propagate(False)
+        meas_icon.grid(row=0, column=0, pady=(20, 15))
         
-        ecto_value = ctk.CTkLabel(
-            ecto_circle,
-            text="32%",
-            font=ThemeManager.get_subtitle_font(),
-            text_color=ThemeManager.PRIMARY_COLOR
+        # Measurements display
+        meas_card = ctk.CTkFrame(
+            meas_frame,
+            fg_color="white",
+            corner_radius=8,
+            border_width=1,
+            border_color=ThemeManager.GRAY_LIGHT
         )
-        ecto_value.place(relx=0.5, rely=0.5, anchor="center")
+        meas_card.grid(row=1, column=0, sticky="ew", padx=20, pady=10)
         
-        ecto_label = ctk.CTkLabel(
-            ecto_frame,
-            text="Ectomorph",
-            font=ThemeManager.get_small_font()
+        self.measurements_label = ctk.CTkLabel(
+            meas_card,
+            text="📊 Chest: 98cm  📊 Waist: 82cm\n📊 Hip: 95cm   📊 Height: 170cm",
+            font=ThemeManager.get_small_font(),
+            text_color=ThemeManager.GRAY_DARK,
+            justify="center"
         )
-        ecto_label.pack()
+        self.measurements_label.grid(row=0, column=0, padx=20, pady=16)
         
-        # Mesomorph
-        meso_frame = ctk.CTkFrame(types_frame, fg_color="transparent")
-        meso_frame.grid(row=0, column=1, padx=15)
+        self.visuals["measurements"] = meas_frame
         
-        meso_circle = ctk.CTkFrame(
-            meso_frame,
-            width=80,
-            height=80,
-            corner_radius=40,
-            fg_color=ThemeManager.BG_COLOR,
-            border_color=ThemeManager.PRIMARY_COLOR,
-            border_width=2
+        # 5. Classification - show animated percentage dials
+        class_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
+        class_frame.grid_columnconfigure(0, weight=1)
+        
+        class_icon = ctk.CTkLabel(
+            class_frame,
+            text="🏃",
+            font=ctk.CTkFont(size=36)
         )
-        meso_circle.pack(pady=5)
-        meso_circle.grid_propagate(False)
+        class_icon.grid(row=0, column=0, pady=(20, 15))
         
-        meso_value = ctk.CTkLabel(
-            meso_circle,
-            text="45%",
-            font=ThemeManager.get_subtitle_font(),
-            text_color=ThemeManager.PRIMARY_COLOR
+        # Classification results
+        class_card = ctk.CTkFrame(
+            class_frame,
+            fg_color="white",
+            corner_radius=8,
+            border_width=1,
+            border_color=ThemeManager.GRAY_LIGHT
         )
-        meso_value.place(relx=0.5, rely=0.5, anchor="center")
+        class_card.grid(row=1, column=0, sticky="ew", padx=20, pady=10)
         
-        meso_label = ctk.CTkLabel(
-            meso_frame,
-            text="Mesomorph",
-            font=ThemeManager.get_small_font()
+        self.classification_label = ctk.CTkLabel(
+            class_card,
+            text="🎯 Endomorph: 45%\n🎯 Mesomorph: 35%\n🎯 Ectomorph: 20%",
+            font=ThemeManager.get_small_font(),
+            text_color=ThemeManager.GRAY_DARK,
+            justify="center"
         )
-        meso_label.pack()
+        self.classification_label.grid(row=0, column=0, padx=20, pady=16)
         
-        # Endomorph
-        endo_frame = ctk.CTkFrame(types_frame, fg_color="transparent")
-        endo_frame.grid(row=0, column=2, padx=15)
+        self.visuals["classification"] = class_frame
         
-        endo_circle = ctk.CTkFrame(
-            endo_frame,
-            width=80,
-            height=80,
-            corner_radius=40,
-            fg_color=ThemeManager.BG_COLOR,
-            border_color=ThemeManager.PRIMARY_COLOR,
-            border_width=2
-        )
-        endo_circle.pack(pady=5)
-        endo_circle.grid_propagate(False)
-        
-        endo_value = ctk.CTkLabel(
-            endo_circle,
-            text="23%",
-            font=ThemeManager.get_subtitle_font(),
-            text_color=ThemeManager.PRIMARY_COLOR
-        )
-        endo_value.place(relx=0.5, rely=0.5, anchor="center")
-        
-        endo_label = ctk.CTkLabel(
-            endo_frame,
-            text="Endomorph",
-            font=ThemeManager.get_small_font()
-        )
-        endo_label.pack()
-        
-        self.visuals["somatotype"] = somatotype_frame
-        
-        # 6. Diet recommendations visual
+        # 6. Diet plan - show meal preview icons
         diet_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
+        diet_frame.grid_columnconfigure(0, weight=1)
         
-        # Macronutrient ratio visualization
-        macros_frame = ctk.CTkFrame(
+        diet_icon = ctk.CTkLabel(
             diet_frame,
-            fg_color=ThemeManager.BG_COLOR,
-            corner_radius=10
+            text="🍽️",
+            font=ctk.CTkFont(size=36)
         )
-        macros_frame.pack(pady=10, fill="x")
+        diet_icon.grid(row=0, column=0, pady=(20, 15))
         
-        macro_label = ctk.CTkLabel(
-            macros_frame,
-            text="Calculating Optimal Macronutrient Ratio",
-            font=ThemeManager.get_label_font()
+        # Diet plan preview
+        diet_card = ctk.CTkFrame(
+            diet_frame,
+            fg_color="white",
+            corner_radius=8,
+            border_width=1,
+            border_color=ThemeManager.GRAY_LIGHT
         )
-        macro_label.pack(pady=(10, 5))
+        diet_card.grid(row=1, column=0, sticky="ew", padx=20, pady=10)
         
-        macro_bar = ctk.CTkFrame(
-            macros_frame,
-            height=20,
-            corner_radius=10,
-            fg_color=ThemeManager.GRAY_LIGHT
+        self.diet_preview_label = ctk.CTkLabel(
+            diet_card,
+            text="🥗 Breakfast   🍗 Lunch   🥘 Dinner\n📋 Creating personalized meal plan...",
+            font=ThemeManager.get_small_font(),
+            text_color=ThemeManager.GRAY_DARK,
+            justify="center"
         )
-        macro_bar.pack(padx=15, pady=(0, 15), fill="x")
+        self.diet_preview_label.grid(row=0, column=0, padx=20, pady=16)
         
-        # Protein segment
-        protein_fill = ctk.CTkFrame(
-            macro_bar,
-            height=20,
-            corner_radius=10,
-            fg_color=ThemeManager.SUCCESS_COLOR
-        )
-        protein_fill.place(relx=0, rely=0, relwidth=0.3, relheight=1)
-        
-        # Carbs segment
-        carbs_fill = ctk.CTkFrame(
-            macro_bar,
-            height=20,
-            corner_radius=0,
-            fg_color=ThemeManager.WARNING_COLOR
-        )
-        carbs_fill.place(relx=0.3, rely=0, relwidth=0.45, relheight=1)
-        
-        # Fats segment
-        fats_fill = ctk.CTkFrame(
-            macro_bar,
-            height=20,
-            corner_radius=0,
-            fg_color=ThemeManager.PRIMARY_COLOR
-        )
-        fats_fill.place(relx=0.75, rely=0, relwidth=0.25, relheight=1)
-        
-        # Legend
-        legend_frame = ctk.CTkFrame(macros_frame, fg_color="transparent")
-        legend_frame.pack(pady=(0, 10), fill="x")
-        legend_frame.grid_columnconfigure((0, 1, 2), weight=1)
-        
-        # Protein
-        protein_legend = ctk.CTkFrame(legend_frame, fg_color="transparent")
-        protein_legend.grid(row=0, column=0)
-        
-        protein_color = ctk.CTkFrame(
-            protein_legend,
-            width=12,
-            height=12,
-            corner_radius=6,
-            fg_color=ThemeManager.SUCCESS_COLOR
-        )
-        protein_color.grid(row=0, column=0, padx=(0, 5))
-        
-        protein_text = ctk.CTkLabel(
-            protein_legend,
-            text="Protein: 30%",
-            font=ThemeManager.get_small_font()
-        )
-        protein_text.grid(row=0, column=1)
-        
-        # Carbs
-        carbs_legend = ctk.CTkFrame(legend_frame, fg_color="transparent")
-        carbs_legend.grid(row=0, column=1)
-        
-        carbs_color = ctk.CTkFrame(
-            carbs_legend,
-            width=12,
-            height=12,
-            corner_radius=6,
-            fg_color=ThemeManager.WARNING_COLOR
-        )
-        carbs_color.grid(row=0, column=0, padx=(0, 5))
-        
-        carbs_text = ctk.CTkLabel(
-            carbs_legend,
-            text="Carbs: 45%",
-            font=ThemeManager.get_small_font()
-        )
-        carbs_text.grid(row=0, column=1)
-        
-        # Fats
-        fats_legend = ctk.CTkFrame(legend_frame, fg_color="transparent")
-        fats_legend.grid(row=0, column=2)
-        
-        fats_color = ctk.CTkFrame(
-            fats_legend,
-            width=12,
-            height=12,
-            corner_radius=6,
-            fg_color=ThemeManager.PRIMARY_COLOR
-        )
-        fats_color.grid(row=0, column=0, padx=(0, 5))
-        
-        fats_text = ctk.CTkLabel(
-            fats_legend,
-            text="Fats: 25%",
-            font=ThemeManager.get_small_font()
-        )
-        fats_text.grid(row=0, column=1)
-        
-        self.visuals["diet"] = diet_frame
+        self.visuals["diet_plan"] = diet_frame
         
     def show_visual(self, visual_name):
-        """Show a specific visual and hide others"""
-        if self.current_visual:
-            self.visuals[self.current_visual].grid_forget()
-            
+        """Show the visual for the current step with smooth transitions"""
+        # Hide current visual
+        if self.current_visual and self.current_visual in self.visuals:
+            self.visuals[self.current_visual].grid_remove()
+        
+        # Show new visual
         if visual_name in self.visuals:
-            self.visuals[visual_name].grid(row=0, column=0, sticky="nsew")
+            self.visuals[visual_name].grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
             self.current_visual = visual_name
             
+        # Update header text based on step with more engaging titles
+        step_headers = {
+            "initializing": "🔄 Initializing Analysis",
+            "user_input": "👤 Your Information", 
+            "image_processing": "📸 Processing Images",
+            "measurements": "📏 Body Measurements",
+            "classification": "🏃 Body Type Analysis",
+            "diet_plan": "🍽️ Your Diet Plan"
+        }
+        
+        if visual_name in step_headers:
+            self.header.configure(text=step_headers[visual_name])
+                
     def update_time_estimate(self, seconds):
-        """Update the estimated time remaining"""
-        self.time_label.configure(text=f"Estimated time remaining: {seconds} seconds")
+        """Update the time estimate with animated countdown"""
+        self.remaining_time = max(0, seconds)
+        minutes = seconds // 60
+        secs = seconds % 60
         
-    def animate_scan(self, is_front=True):
-        """Animate scanning line across image"""
-        scan_line = self.front_scan if is_front else self.side_scan
+        if minutes > 0:
+            time_text = f"Estimated time: {minutes}m {secs}s"
+        else:
+            time_text = f"Estimated time: {secs}s"
+            
+        self.time_label.configure(text=time_text)
         
-        # Start at top
-        scan_line.place(rely=0)
-        
-        def move_scan(progress=0):
-            if progress <= 1.0:
-                scan_line.place(rely=progress)
-                self.after(50, lambda: move_scan(progress + 0.05))
-            else:
-                # Reset to top
-                scan_line.place(rely=0)
-        
-        move_scan()
+    def start_clock_animation(self):
+        """Start the pulsing animated clock with countdown"""
+        def animate_clock():
+            # Pulsing clock animation
+            clock_icons = ["🕐", "🕑", "🕒", "🕓", "🕔", "🕕", "🕖", "🕗", "🕘", "🕙", "🕚", "🕛"]
+            clock_index = int((time.time() * 2) % len(clock_icons))
+            self.clock_icon.configure(text=clock_icons[clock_index])
+            
+            # Countdown with color changes
+            if self.remaining_time > 0:
+                self.remaining_time -= 1
+                self.update_time_estimate(self.remaining_time)
+                
+                # Color urgency feedback
+                if self.remaining_time <= 5:
+                    self.time_label.configure(text_color=ThemeManager.WARNING_COLOR)
+                elif self.remaining_time <= 10:
+                    self.time_label.configure(text_color=ThemeManager.PRIMARY_COLOR)
+                else:
+                    self.time_label.configure(text_color=ThemeManager.GRAY_DARK)
+            
+            self.after(800, animate_clock)  # Slower, more relaxed pulsing
+            
+        animate_clock()
 
 class ProcessingPage(ctk.CTkFrame):
-    """Page that shows processing steps as data is analyzed"""
+    """Enhanced processing page with better visual storytelling and intuitive design"""
     
     def __init__(self, parent, controller):
         super().__init__(parent, fg_color=ThemeManager.BG_COLOR)
         self.controller = controller
-        
-        # Configure the layout
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=0)  # Header
-        self.grid_rowconfigure(1, weight=0)  # Progress
-        self.grid_rowconfigure(2, weight=1)  # Content
-        
-        # Header with title
-        self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.header_frame.grid(row=0, column=0, sticky="ew", pady=(20, 0), padx=20)
-        self.header_frame.grid_columnconfigure(0, weight=1)
-        
-        # Title
-        self.title_label = ctk.CTkLabel(
-            self.header_frame,
-            text="Analyzing Your Data",
-            font=ThemeManager.get_title_font()
-        )
-        self.title_label.grid(row=0, column=0)
-        
-        # Subtitle
-        self.subtitle_label = ctk.CTkLabel(
-            self.header_frame,
-            text="Please wait while our AI processes your information",
-            font=ThemeManager.get_label_font(),
-            text_color=ThemeManager.GRAY_DARK
-        )
-        self.subtitle_label.grid(row=1, column=0, pady=(5, 0))
-        
-        # Main content area with two columns
-        self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.content_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=20)
-        self.content_frame.grid_columnconfigure(0, weight=1)  # Steps
-        self.content_frame.grid_columnconfigure(1, weight=1)  # Visual card
-        self.content_frame.grid_rowconfigure(0, weight=1)
-        
-        # Left column - Processing steps
-        self.steps_frame = ThemeManager.create_card_frame(self.content_frame)
-        self.steps_frame.grid(row=0, column=0, padx=(0, 10), sticky="nsew")
-        self.steps_frame.grid_columnconfigure(0, weight=1)
-        
-        # Step title
-        self.steps_title = ctk.CTkLabel(
-            self.steps_frame,
-            text="Processing Steps",
-            font=ThemeManager.get_subtitle_font()
-        )
-        self.steps_title.grid(row=0, column=0, padx=15, pady=(15, 10), sticky="w")
-        
-        # Processing steps - each step is a visual element showing progress
-        self.steps_container = ctk.CTkFrame(self.steps_frame, fg_color="transparent")
-        self.steps_container.grid(row=1, column=0, padx=15, pady=5, sticky="nsew")
-        self.steps_container.grid_columnconfigure(0, weight=1)
-        
-        # Create the steps
-        self.processing_steps = {}
-        
-        # Step 1: Fetching User Input
-        self.processing_steps["user_input"] = ProcessingStep(
-            self.steps_container,
-            "Fetching User Input",
-            step_description="Loading your personal details for analysis"
-        )
-        self.processing_steps["user_input"].grid(row=0, column=0, pady=10, sticky="ew")
-        
-        # Step 2: Processing Images
-        self.processing_steps["image_processing"] = ProcessingStep(
-            self.steps_container,
-            "Processing Images",
-            step_description="Analyzing your body measurements from captured images"
-        )
-        self.processing_steps["image_processing"].grid(row=1, column=0, pady=10, sticky="ew")
-        
-        # Step 3: Extracting Measurements
-        self.processing_steps["measurements"] = ProcessingStep(
-            self.steps_container,
-            "Extracting Measurements",
-            step_description="Calculating key body metrics and proportions"
-        )
-        self.processing_steps["measurements"].grid(row=2, column=0, pady=10, sticky="ew")
-        
-        # Step 4: Somatotype Classification
-        self.processing_steps["classification"] = ProcessingStep(
-            self.steps_container,
-            "Somatotype Classification",
-            step_description="Determining your unique body type composition"
-        )
-        self.processing_steps["classification"].grid(row=3, column=0, pady=10, sticky="ew")
-        
-        # Step 5: Generating Diet Plan
-        self.processing_steps["diet_plan"] = ProcessingStep(
-            self.steps_container,
-            "Generating Diet Plan",
-            step_description="Creating personalized nutrition recommendations"
-        )
-        self.processing_steps["diet_plan"].grid(row=4, column=0, pady=10, sticky="ew")
-        
-        # Cancel button at bottom of steps
-        self.cancel_button = ThemeManager.create_secondary_button(
-            self.steps_frame,
-            "Cancel Process",
-            self.cancel_processing
-        )
-        self.cancel_button.grid(row=2, column=0, padx=15, pady=15)
-        
-        # Right column - Visualization card
-        self.visual_card = VisualCard(self.content_frame)
-        self.visual_card.grid(row=0, column=1, padx=(10, 0), sticky="nsew")
-        
-        # Internal state tracking for animations and progress
-        self.current_step = None
-        self.progress_thread = None
         self.stop_requested = False
         
-        # Ensure the ProcessingPage has reference to the state manager
-        self.state_manager = controller.state_manager if hasattr(controller, 'state_manager') else None
+        # Configure main grid for better responsive layout
+        self.grid_columnconfigure(0, weight=2)  # Left side (steps)
+        self.grid_columnconfigure(1, weight=1)  # Right side (visual card)
+        self.grid_rowconfigure(0, weight=1)
         
+        # Left panel - Processing steps with better visual hierarchy
+        self.left_panel = ctk.CTkFrame(self, fg_color="transparent")
+        self.left_panel.grid(row=0, column=0, sticky="nsew", padx=(24, 12), pady=24)
+        self.left_panel.grid_columnconfigure(0, weight=1)
+        
+        # Header with improved layout and subtle cancel button
+        self.header_frame = ctk.CTkFrame(self.left_panel, fg_color="transparent")
+        self.header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 24))
+        self.header_frame.grid_columnconfigure(1, weight=1)
+        
+        # Title following original typography with better hierarchy
+        self.title_label = ctk.CTkLabel(
+            self.header_frame,
+            text="Processing Analysis",
+            font=ThemeManager.get_title_font(),
+            text_color=ThemeManager.GRAY_DARK
+        )
+        self.title_label.grid(row=0, column=0, sticky="w")
+        
+        # Subtle cancel button - gray outline, smaller, less prominent
+        self.cancel_button = ctk.CTkButton(
+            self.header_frame,
+            text="Cancel",
+            command=self.cancel_processing,
+            font=ThemeManager.get_small_font(),
+            fg_color="transparent",
+            text_color=ThemeManager.GRAY_MEDIUM,
+            hover_color=ThemeManager.GRAY_LIGHT,
+            corner_radius=6,
+            border_width=1,
+            border_color=ThemeManager.GRAY_MEDIUM,
+            width=70,
+            height=28
+        )
+        self.cancel_button.grid(row=0, column=1, sticky="e")
+        
+        # Add tooltip effect for cancel button
+        def show_tooltip(event):
+            self.cancel_button.configure(text_color=ThemeManager.GRAY_DARK)
+        def hide_tooltip(event):
+            self.cancel_button.configure(text_color=ThemeManager.GRAY_MEDIUM)
+            
+        self.cancel_button.bind("<Enter>", show_tooltip)
+        self.cancel_button.bind("<Leave>", hide_tooltip)
+        
+        # Steps container - using regular frame instead of scrollable to show all steps
+        self.steps_frame = ctk.CTkFrame(
+            self.left_panel, 
+            fg_color="transparent"
+        )
+        self.steps_frame.grid(row=1, column=0, sticky="nsew")
+        self.steps_frame.grid_columnconfigure(0, weight=1)
+        # Configure row weights to distribute steps evenly
+        for i in range(5):  # 5 processing steps
+            self.steps_frame.grid_rowconfigure(i, weight=1)
+        
+        # Right panel - Enhanced visual card
+        self.visual_card = VisualCard(self)
+        self.visual_card.grid(row=0, column=1, sticky="nsew", padx=(12, 24), pady=24)
+        
+        # Create processing steps with better icons and action-based descriptions
+        self.processing_steps = {}
+        steps_data = [
+            ("user_input", "👤", "Validating details", "Checking user information and preferences"),
+            ("image_processing", "📸", "Detecting body features", "Analyzing front and side view images"), 
+            ("measurements", "📏", "Calculating body metrics", "Extracting body measurements and proportions"),
+            ("classification", "🏃", "Determining body type", "Classifying somatotype based on measurements"),
+            ("diet_plan", "🍽️", "Building nutrition plan", "Creating personalized meal recommendations")
+        ]
+        
+        for i, (step_id, icon, title, description) in enumerate(steps_data):
+            step = ProcessingStep(
+                self.steps_frame,
+                title,
+                icon,
+                description
+            )
+            # Remove fixed height and use flexible sizing with proper spacing
+            step.grid(row=i, column=0, sticky="ew", pady=(0, 12), padx=8)
+            self.processing_steps[step_id] = step
+            
     def update_step(self, step_name, status, description=None, progress=None):
-        """Update a processing step's status and appearance"""
+        """Update a specific processing step with enhanced visual feedback"""
         if step_name in self.processing_steps:
             self.processing_steps[step_name].update_status(status, description, progress)
             
-    def update_all_progress(self, step_index, total_progress):
-        """Update progress for all steps based on overall progress"""
-        step_names = list(self.processing_steps.keys())
-        
-        for i, step_name in enumerate(step_names):
-            if i < step_index:
-                # Steps before current are complete
-                self.update_step(step_name, self.processing_steps[step_name].STATUS_COMPLETE, progress=1.0)
-            elif i == step_index:
-                # Current step is in progress
-                self.update_step(step_name, self.processing_steps[step_name].STATUS_PROCESSING, progress=total_progress)
-            else:
-                # Future steps are waiting
-                self.update_step(step_name, self.processing_steps[step_name].STATUS_WAITING, progress=0.0)
-                
+        # Update visual card based on current step for better user engagement
+        if status == self.processing_steps[step_name].STATUS_PROCESSING:
+            self.visual_card.show_visual(step_name)
+            
+            # Update time estimates based on step
+            time_estimates = {
+                "user_input": 3,
+                "image_processing": 15,
+                "measurements": 8,
+                "classification": 5,
+                "diet_plan": 4
+            }
+            if step_name in time_estimates:
+                self.visual_card.remaining_time = time_estimates[step_name]
+                self.visual_card.update_time_estimate(time_estimates[step_name])
+            
     def run_process_threaded(self):
         """Start the processing in a separate thread"""
-        self.stop_requested = False
+        def run_thread():
+            self.run_process()
         
-        if self.progress_thread is None or not self.progress_thread.is_alive():
-            self.progress_thread = threading.Thread(target=self.run_process)
-            self.progress_thread.daemon = True
-            self.progress_thread.start()
-            
+        thread = threading.Thread(target=run_thread, daemon=True)
+        thread.start()
+        
     def run_process(self):
-        """Run the actual processing steps"""
+        """Main processing logic with enhanced progress updates and timing"""
         try:
-            # Step 1: Fetch User Input
-            self.update_step("user_input", self.processing_steps["user_input"].STATUS_PROCESSING, 
-                           "Loading and validating your personal information...")
-            self.current_step = "user_input"
-            self.visual_card.show_visual("user_data")
+            # Step 1: Validate user input
+            self.update_step("user_input", self.processing_steps["user_input"].STATUS_PROCESSING)
             
-            # Simulate progress for user input step
-            for progress in [0.2, 0.4, 0.6, 0.8, 1.0]:
+            # Simulate progressive loading with more realistic timing
+            for i in range(4):
                 if self.stop_requested:
                     return
-                time.sleep(0.5)  # Simulate some processing time
-                self.update_step("user_input", self.processing_steps["user_input"].STATUS_PROCESSING, 
-                               progress=progress)
+                time.sleep(0.5)
+                self.update_step("user_input", self.processing_steps["user_input"].STATUS_PROCESSING, progress=(i+1)/4)
                 
-            # Mark user input as complete
-            self.update_step("user_input", self.processing_steps["user_input"].STATUS_COMPLETE, 
-                           "Personal information loaded successfully")
+            self.update_step("user_input", self.processing_steps["user_input"].STATUS_COMPLETE, "Details validated ✓", progress=1.0)
+            time.sleep(0.5)  # Brief pause for visual feedback
             
-            # Step 2: Process Images
-            if self.stop_requested:
-                return
-            self.update_step("image_processing", self.processing_steps["image_processing"].STATUS_PROCESSING, 
-                           "Processing front and side images...")
-            self.current_step = "image_processing"
-            self.visual_card.show_visual("image_processing")
-            
-            # Simulate front image scanning
-            self.visual_card.animate_scan(is_front=True)
-            time.sleep(1)
-            self.update_step("image_processing", self.processing_steps["image_processing"].STATUS_PROCESSING, 
-                           "Analyzing front pose...", progress=0.3)
-            
-            # Now run the actual CNN model processing
-            self.update_step("image_processing", self.processing_steps["image_processing"].STATUS_PROCESSING, 
-                           "Running image analysis algorithm...", progress=0.5)
-            
+            # Step 2: Process images
+            self.update_step("image_processing", self.processing_steps["image_processing"].STATUS_PROCESSING)
             success = self.run_cnn_model()
-            if not success or self.stop_requested:
-                self.update_step("image_processing", self.processing_steps["image_processing"].STATUS_ERROR, 
-                               "Error processing images. Please try again.")
-                return
-            
-            # Mark image processing as complete
-            self.update_step("image_processing", self.processing_steps["image_processing"].STATUS_COMPLETE, 
-                           "Images processed successfully")
-            
-            # Step 3: Extract Measurements
             if self.stop_requested:
                 return
-            self.update_step("measurements", self.processing_steps["measurements"].STATUS_PROCESSING, 
-                           "Calculating body measurements...")
-            self.current_step = "measurements"
-            self.visual_card.show_visual("measurements")
+            if success:
+                self.update_step("image_processing", self.processing_steps["image_processing"].STATUS_COMPLETE, "Features detected ✓", progress=1.0)
+            else:
+                self.update_step("image_processing", self.processing_steps["image_processing"].STATUS_ERROR, "Image processing failed")
+                return
+                
+            time.sleep(0.5)
             
-            # Simulate measurement extraction progress
-            for progress in [0.2, 0.4, 0.6, 0.8, 1.0]:
+            # Step 3: Extract measurements 
+            self.update_step("measurements", self.processing_steps["measurements"].STATUS_PROCESSING)
+            
+            # Simulate measurement extraction with progress
+            for i in range(6):
                 if self.stop_requested:
                     return
-                time.sleep(0.5)  # Simulate some processing time
-                self.update_step("measurements", self.processing_steps["measurements"].STATUS_PROCESSING, 
-                               progress=progress)
+                time.sleep(0.5)
+                self.update_step("measurements", self.processing_steps["measurements"].STATUS_PROCESSING, progress=(i+1)/6)
+                
+            self.update_step("measurements", self.processing_steps["measurements"].STATUS_COMPLETE, "Metrics calculated ✓", progress=1.0)
+            time.sleep(0.5)
             
-            # Mark measurements as complete
-            self.update_step("measurements", self.processing_steps["measurements"].STATUS_COMPLETE, 
-                           "Body measurements calculated successfully")
-            
-            # Step 4: Classification
-            if self.stop_requested:
-                return
-            self.update_step("classification", self.processing_steps["classification"].STATUS_PROCESSING, 
-                           "Determining your somatotype...")
-            self.current_step = "classification"
-            self.visual_card.show_visual("somatotype")
-            
-            # Run the actual classifier
+            # Step 4: Classify somatotype
+            self.update_step("classification", self.processing_steps["classification"].STATUS_PROCESSING)
             success = self.run_classifier()
-            if not success or self.stop_requested:
-                self.update_step("classification", self.processing_steps["classification"].STATUS_ERROR, 
-                               "Error in classification. Please try again.")
-                return
-            
-            # Mark classification as complete
-            self.update_step("classification", self.processing_steps["classification"].STATUS_COMPLETE, 
-                           "Somatotype classification complete")
-            
-            # Step 5: Diet Recommendations
             if self.stop_requested:
                 return
-            self.update_step("diet_plan", self.processing_steps["diet_plan"].STATUS_PROCESSING, 
-                           "Generating personalized diet recommendations...")
-            self.current_step = "diet_plan"
-            self.visual_card.show_visual("diet")
-            
-            # Run the actual recommender
-            success = self.run_recommender()
-            if not success or self.stop_requested:
-                self.update_step("diet_plan", self.processing_steps["diet_plan"].STATUS_ERROR, 
-                               "Error generating diet plan. Please try again.")
+            if success:
+                self.update_step("classification", self.processing_steps["classification"].STATUS_COMPLETE, "Body type determined ✓", progress=1.0)
+            else:
+                self.update_step("classification", self.processing_steps["classification"].STATUS_ERROR, "Classification failed")
                 return
+                
+            time.sleep(0.5)
             
-            # Mark diet plan as complete
-            self.update_step("diet_plan", self.processing_steps["diet_plan"].STATUS_COMPLETE, 
-                           "Diet recommendations generated successfully")
-            
-            # All steps complete - load results in state manager
-            if self.state_manager:
-                self.state_manager.load_analysis_results()
-            
-            # Wait a moment to show completion
-            time.sleep(1.5)
-            
-            # Navigate to results page
-            if not self.stop_requested:
-                self.controller.after(100, lambda: self.controller.show_frame("DietPage"))
+            # Step 5: Generate diet plan
+            self.update_step("diet_plan", self.processing_steps["diet_plan"].STATUS_PROCESSING)
+            success = self.run_recommender()
+            if self.stop_requested:
+                return
+            if success:
+                self.update_step("diet_plan", self.processing_steps["diet_plan"].STATUS_COMPLETE, "Nutrition plan ready ✓", progress=1.0)
+                # Brief success moment before navigation
+                time.sleep(1)
+                self.controller.after(500, lambda: self.controller.show_frame("DietPage"))
+            else:
+                self.update_step("diet_plan", self.processing_steps["diet_plan"].STATUS_ERROR, "Diet generation failed")
                 
         except Exception as e:
-            print(f"Error during processing: {str(e)}")
-            # Show error on current step
-            if self.current_step:
-                self.update_step(self.current_step, self.processing_steps[self.current_step].STATUS_ERROR, 
-                               f"An unexpected error occurred")
+            print(f"Processing error: {e}")
+            # Mark current step as error
+            for step_name, step in self.processing_steps.items():
+                if step.current_status == step.STATUS_PROCESSING:
+                    self.update_step(step_name, step.STATUS_ERROR, f"Error: {str(e)}")
+                    break
 
     def run_cnn_model(self):
-        """Run the CNN model to extract measurements from images"""
+        """Run CNN model for image processing"""
         try:
-            # Update the visual to show image processing
-            self.visual_card.animate_scan(is_front=False)
-            
-            # Activate the virtual environment and run the CNN script
-            activate_script = os.path.join(VENV_DIR, "cnn_env", "Scripts", "activate")
+            # Use the virtual environment Python path directly
+            python_path = "C:/Users/LENOVO/Desktop/Kekious_Maximus/diet-recommendation-somatotype/.venv/cnn_env/Scripts/python.exe"
             cnn_script = os.path.join(CNN_DIR, "photos2avatar.py")
+            command = f'"{python_path}" "{cnn_script}"'
             
-            command = f'cmd.exe /c "{activate_script} && python {cnn_script}"'
-            
-            self.update_step("image_processing", self.processing_steps["image_processing"].STATUS_PROCESSING, 
-                           "Running CNN model for measurement extraction...", progress=0.7)
+            print(f"Running CNN command: {command}")
             
             process = subprocess.Popen(
-                command,
-                cwd=CNN_DIR,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                shell=True
+                command, cwd=CNN_DIR, stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE, text=True, shell=True
             )
-
-            process.wait()  # Wait for the process to complete
-
+            
+            stdout, stderr = process.communicate()
+            
+            if stdout:
+                print(f"CNN stdout: {stdout}")
+            if stderr:
+                print(f"CNN stderr: {stderr}")
+            
             return process.returncode == 0
         except Exception as e:
-            print(f"CNN model error: {str(e)}")
+            print(f"CNN model error: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def run_classifier(self):
-        """Run the classifier to determine somatotype"""
+        """Run classifier for somatotype detection"""
         try:
+            # Use the virtual environment Python path
+            python_path = "C:/Users/LENOVO/Desktop/Kekious_Maximus/diet-recommendation-somatotype/.venv/cnn_env/Scripts/python.exe"
             classifier_script = os.path.join(CLASSIFIER_DIR, "classifier.py")
-            command = f'cmd.exe /c "python {classifier_script}"'
+            command = f'"{python_path}" "{classifier_script}"'
             
-            # Update progress visually
-            for progress in [0.2, 0.4, 0.6, 0.8]:
-                if self.stop_requested:
-                    return False
-                time.sleep(0.5)  # Simulate some processing time
-                self.update_step("classification", self.processing_steps["classification"].STATUS_PROCESSING, 
-                               progress=progress)
+            print(f"Running classifier command: {command}")
             
             process = subprocess.Popen(
-                command,
-                cwd=CLASSIFIER_DIR,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                shell=True
+                command, cwd=CLASSIFIER_DIR, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, text=True, shell=True
             )
-
-            process.wait()  # Wait for the process to complete
-
+            
+            stdout, stderr = process.communicate()
+            
+            if stdout:
+                print(f"Classifier stdout: {stdout}")
+            if stderr:
+                print(f"Classifier stderr: {stderr}")
+            
             return process.returncode == 0
         except Exception as e:
-            print(f"Classifier error: {str(e)}")
+            print(f"Classifier error: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def run_recommender(self):
-        """Run the recommender to generate diet plan"""
+        """Run recommender for diet plan generation"""
         try:
             recommender_script = os.path.join(RECOMMENDER_DIR, "recommender.py")
-            command = f'cmd.exe /c "python {recommender_script}"'
             
-            # Update progress visually
-            for progress in [0.2, 0.4, 0.6, 0.8]:
-                if self.stop_requested:
-                    return False
-                time.sleep(0.5)  # Simulate some processing time
-                self.update_step("diet_plan", self.processing_steps["diet_plan"].STATUS_PROCESSING, 
-                               progress=progress)
+            # Use the virtual environment Python path
+            python_path = "C:/Users/LENOVO/Desktop/Kekious_Maximus/diet-recommendation-somatotype/.venv/cnn_env/Scripts/python.exe"
+            
+            # Try the integration script first, then fall back to recommender.py
+            integration_script = os.path.join(RECOMMENDER_DIR, "integrate_recommendations.py")
+            
+            if os.path.exists(integration_script):
+                command = f'"{python_path}" "{integration_script}"'
+            else:
+                command = f'"{python_path}" "{recommender_script}"'
+            
+            print(f"Running command: {command}")
             
             process = subprocess.Popen(
-                command,
-                cwd=RECOMMENDER_DIR,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                shell=True
+                command, cwd=RECOMMENDER_DIR, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, text=True, shell=True
             )
-
-            process.wait()  # Wait for the process to complete
-
+            
+            stdout, stderr = process.communicate()
+            
+            # Print output for debugging
+            if stdout:
+                print(f"Recommender stdout: {stdout}")
+            if stderr:
+                print(f"Recommender stderr: {stderr}")
+            
             return process.returncode == 0
         except Exception as e:
-            print(f"Recommender error: {str(e)}")
+            print(f"Recommender error: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def cancel_processing(self):
-        """Cancel the processing and return to capture page"""
+        """Cancel processing and return to previous page with gentle feedback"""
         self.stop_requested = True
-        self.controller.after(100, lambda: self.controller.show_frame("CapturePage"))
+        # Provide subtle feedback that cancellation is processing
+        self.cancel_button.configure(text="Stopping...", text_color=ThemeManager.WARNING_COLOR)
+        self.controller.after(300, lambda: self.controller.show_frame("CapturePage"))
 
     def on_show(self):
-        """Called when the page is shown"""
-        # Reset all steps to waiting
+        """Called when the page is shown - reset and start processing"""
+        self.stop_requested = False
+        
+        # Reset cancel button
+        self.cancel_button.configure(text="Cancel", text_color=ThemeManager.GRAY_MEDIUM)
+        
+        # Reset all steps to waiting state
         for step_name in self.processing_steps:
             self.update_step(step_name, self.processing_steps[step_name].STATUS_WAITING, progress=0.0)
         
-        # Start with the first step
-        self.update_step("user_input", self.processing_steps["user_input"].STATUS_PROCESSING, progress=0.0)
+        # Reset visual card
+        self.visual_card.show_visual("initializing")
+        self.visual_card.remaining_time = 35
         
-        # Start the processing thread
-        self.run_process_threaded()
+        # Start processing with brief delay for better UX
+        self.after(800, self.run_process_threaded)
 
 if __name__ == "__main__":
-    # For standalone testing
+    # Test the clean design
     class DummyController:
         def show_frame(self, frame_name):
             print(f"Switching to frame: {frame_name}")
         def after(self, ms, func):
             func()
-            
-        class StateManager:
-            def __init__(self):
-                pass
-                
-            def load_analysis_results(self):
-                print("Loading analysis results")
 
     controller = DummyController()
-    controller.state_manager = controller.StateManager()
     
-    # Create and run app
     root = ctk.CTk()
-    root.title("Processing Page Test")
-    root.geometry("1000x700")
+    root.title("Processing Page - Clean Design")
+    root.geometry("1200x700")
     ThemeManager.setup_theme()
     
     app = ProcessingPage(root, controller)

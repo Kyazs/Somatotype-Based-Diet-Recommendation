@@ -24,7 +24,17 @@ try:
 except Exception as e:
     print(f"ERROR IMPORTING MODULES: {str(e)}")
     traceback.print_exc()
-    input("Press Enter to exit...")
+    # Use messagebox to notify user in GUI context and exit without blocking on stdin
+    try:
+        import tkinter as _tk
+        from tkinter import messagebox as _mb
+        root = _tk.Tk()
+        root.withdraw()
+        _mb.showerror("Startup Error", f"An error occurred importing modules:\n{str(e)}")
+        root.destroy()
+    except Exception:
+        # Fallback to console output
+        pass
     sys.exit(1)
 
 class DietRecommendationApp(ctk.CTk):
@@ -67,12 +77,32 @@ class DietRecommendationApp(ctk.CTk):
             # Show landing page
             self.show_frame("LandingPage")
             print("Application setup complete")
+            # Ensure Tkinter callback exceptions are handled by our handler
+            try:
+                # report_callback_exception is called for uncaught exceptions in Tk callbacks
+                self.report_callback_exception = self._tk_exception_handler
+            except Exception:
+                pass
             
         except Exception as e:
             print(f"ERROR INITIALIZING APP: {str(e)}")
             traceback.print_exc()
+            # Show GUI-friendly error and avoid blocking console input
             messagebox_error("Initialization Error", f"An error occurred during app initialization:\n{str(e)}")
         
+    def _tk_exception_handler(self, exc, val, tb):
+        """Handle uncaught exceptions from Tkinter callbacks gracefully.
+
+        Tkinter calls this for exceptions that occur in event handlers. By
+        overriding it we can show a messagebox instead of letting the app
+        crash or writing to an invalid console handle.
+        """
+        import traceback as _traceback
+        _traceback.print_exception(exc, val, tb)
+        try:
+            messagebox_error("Application Error", f"An unexpected error occurred:\n{val}")
+        except Exception:
+            print("Error showing error dialog")
     def initialize_frames(self):
         """Initialize all application frames/pages"""
         try:
@@ -142,4 +172,8 @@ if __name__ == "__main__":
         print(f"CRITICAL ERROR: {str(e)}")
         traceback.print_exc()
         messagebox_error("Application Error", f"A critical error has occurred:\n{str(e)}")
-        input("Press Enter to exit...")
+        # Avoid blocking on console input in GUI mode — can cause WinError 6 if no valid stdin
+        try:
+            sys.exit(1)
+        except Exception:
+            pass
