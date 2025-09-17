@@ -1,0 +1,60 @@
+{
+  "database_info": {
+    "total_exercises": 1500,
+    "processing_date": "2025-09-02",
+    "scientific_basis": "ACSM Guidelines, NSCA Position Statements"
+  },
+  "training_categories": {
+    "Strength Training": 754,
+    "Cardiovascular Training": 299,
+    "Hypertrophy Training": 266,
+    "Flexibility & Mobility": 78,
+    "Functional Training": 55,
+    "Power Training": 21,
+    "Balance & Coordination": 21,
+    "Metabolic Training": 6
+  },
+  "complexity_distribution": {
+    "2": 646,
+    "3": 552,
+    "1": 217,
+    "4": 72,
+    "5": 13
+  },
+  "equipment_distribution": {
+    "body weight": 372,
+    "dumbbell": 319,
+    "cable": 181,
+    "barbell": 170,
+    "leverage machine": 91,
+    "band": 67,
+    "smith machine": 56,
+    "kettlebell": 46,
+    "weighted": 41,
+    "stability ball": 34,
+    "ez barbell": 26,
+    "assisted": 18,
+    "sled machine": 18,
+    "medicine ball": 14,
+    "rope": 11
+  },
+  "adaptation_averages": {
+    "cardiovascular_endurance": 1.34,
+    "muscular_strength": 5.16,
+    "muscular_hypertrophy": 5.04,
+    "functional_movement": 4.04,
+    "calorie_expenditure": 4.39
+  },
+  "goal_compatibility_averages": {
+    "maintain_weight": 2.67,
+    "lose_weight": 2.99,
+    "gain_weight": 4.15,
+    "build_muscle": 4.15,
+    "improve_fitness": 2.61
+  },
+  "quality_metrics": {
+    "high_quality_exercises": 4,
+    "medium_quality_exercises": 99,
+    "basic_exercises": 1397
+  }
+}
