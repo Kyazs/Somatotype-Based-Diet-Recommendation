@@ -1076,24 +1076,75 @@ if __name__ == "__main__":
         )
         live_feed_label.pack(expand=True)
 
-        # Modern countdown overlay
+        # Modern countdown overlay with enhanced visuals
+        # Outer glow ring (largest)
+        countdown_outer_glow = ctk.CTkFrame(
+            live_feed_container,
+            width=200,
+            height=200,
+            corner_radius=100,
+            fg_color="transparent",
+            border_width=3,
+            border_color="#ffffff40"  # Semi-transparent white
+        )
+        
+        # Middle glow ring
+        countdown_middle_glow = ctk.CTkFrame(
+            live_feed_container,
+            width=170,
+            height=170,
+            corner_radius=85,
+            fg_color="transparent",
+            border_width=4,
+            border_color="#ffffff60"  # More opaque white
+        )
+        
+        # Main countdown frame with gradient effect
         countdown_frame = ctk.CTkFrame(
             live_feed_container,
-            width=120,
-            height=120,
-            corner_radius=60,
-            fg_color=COLORS["primary"],
+            width=140,
+            height=140,
+            corner_radius=70,
+            fg_color=("#3B82F6", "#1D4ED8"),  # Gradient effect
             border_width=3,
             border_color="white",
         )
 
-        countdown_label = ctk.CTkLabel(
+        # Countdown content container
+        countdown_content = ctk.CTkFrame(
             countdown_frame,
+            fg_color="transparent"
+        )
+        countdown_content.pack(expand=True, fill="both")
+
+        # Main countdown number (larger and bolder)
+        countdown_label = ctk.CTkLabel(
+            countdown_content,
             text="",
-            font=ctk.CTkFont(size=36, weight="bold"),
+            font=ctk.CTkFont(size=56, weight="bold"),
             text_color="white",
         )
         countdown_label.pack(expand=True)
+        
+        # Secondary countdown text with better styling
+        countdown_sub_label = ctk.CTkLabel(
+            countdown_content,
+            text="",
+            font=ctk.CTkFont(size=10, weight="bold"),
+            text_color="#E5E7EB",  # Slightly dimmed white
+        )
+        countdown_sub_label.pack(pady=(0, 8))
+
+        # Inner highlight ring for extra effect
+        countdown_inner_highlight = ctk.CTkFrame(
+            countdown_frame,
+            width=120,
+            height=120,
+            corner_radius=60,
+            fg_color="transparent",
+            border_width=2,
+            border_color="#ffffff80"  # Semi-transparent inner highlight
+        )
 
         def capture_images(
             detector,
@@ -1101,6 +1152,11 @@ if __name__ == "__main__":
             side_img_label,
             live_feed_label,
             countdown_label,
+            countdown_sub_label,
+            countdown_frame,
+            countdown_outer_glow,
+            countdown_middle_glow,
+            countdown_inner_highlight,
             front_status,
             side_status,
         ):
@@ -1278,6 +1334,11 @@ if __name__ == "__main__":
                             countdown_start = None
                             countdown_pose = None
                             countdown_frame.place_forget()
+                            countdown_outer_glow.place_forget()
+                            countdown_middle_glow.place_forget()
+                            countdown_inner_highlight.place_forget()
+                            countdown_label.configure(text="")
+                            countdown_sub_label.configure(text="")
 
                         # Handle countdown logic with enhanced visuals and stability check
                         if (
@@ -1289,15 +1350,112 @@ if __name__ == "__main__":
                             remaining_time = max(0, 5 - int(elapsed_time))
 
                             if remaining_time > 0:
+                                # Enhanced countdown with dynamic styling and multiple effects
                                 countdown_text = str(remaining_time)
-                                countdown_label.configure(text=countdown_text)
-                                countdown_frame.place(
-                                    relx=0.5, rely=0.5, anchor="center"
+                                
+                                # Dynamic colors, sizes and effects based on countdown
+                                if remaining_time == 5:
+                                    main_color = "#3B82F6"  # Blue
+                                    glow_color = "#3B82F680"  # Semi-transparent blue
+                                    size_multiplier = 1.0
+                                    sub_text = "GET READY"
+                                    pulse_effect = 1.0
+                                elif remaining_time == 4:
+                                    main_color = "#8B5CF6"  # Purple
+                                    glow_color = "#8B5CF680"  # Semi-transparent purple
+                                    size_multiplier = 1.1
+                                    sub_text = "HOLD POSE"
+                                    pulse_effect = 1.1
+                                elif remaining_time == 3:
+                                    main_color = "#10B981"  # Green
+                                    glow_color = "#10B98180"  # Semi-transparent green
+                                    size_multiplier = 1.2
+                                    sub_text = "STEADY"
+                                    pulse_effect = 1.2
+                                elif remaining_time == 2:
+                                    main_color = "#F59E0B"  # Orange
+                                    glow_color = "#F59E0B80"  # Semi-transparent orange
+                                    size_multiplier = 1.3
+                                    sub_text = "ALMOST!"
+                                    pulse_effect = 1.3
+                                else:  # remaining_time == 1
+                                    main_color = "#EF4444"  # Red
+                                    glow_color = "#EF444480"  # Semi-transparent red
+                                    size_multiplier = 1.4
+                                    sub_text = "SMILE! 📸"
+                                    pulse_effect = 1.4
+                                
+                                # Calculate dynamic sizes with pulse effect
+                                base_size = 140
+                                outer_base = 200
+                                middle_base = 170
+                                inner_base = 120
+                                
+                                frame_size = int(base_size * size_multiplier)
+                                outer_size = int(outer_base * size_multiplier * pulse_effect)
+                                middle_size = int(middle_base * size_multiplier)
+                                inner_size = int(inner_base * size_multiplier)
+                                font_size = int(56 * size_multiplier)
+                                
+                                # Update main countdown frame with gradient
+                                countdown_frame.configure(
+                                    width=frame_size,
+                                    height=frame_size,
+                                    corner_radius=frame_size//2,
+                                    fg_color=main_color,
+                                    border_width=int(3 * size_multiplier),
+                                    border_color="white"
                                 )
+                                
+                                # Update outer glow ring
+                                countdown_outer_glow.configure(
+                                    width=outer_size,
+                                    height=outer_size,
+                                    corner_radius=outer_size//2,
+                                    border_width=int(3 * pulse_effect),
+                                    border_color=glow_color
+                                )
+                                
+                                # Update middle glow ring
+                                countdown_middle_glow.configure(
+                                    width=middle_size,
+                                    height=middle_size,
+                                    corner_radius=middle_size//2,
+                                    border_width=int(4 * size_multiplier),
+                                    border_color=f"{glow_color}AA"  # More opaque
+                                )
+                                
+                                # Update inner highlight
+                                countdown_inner_highlight.configure(
+                                    width=inner_size,
+                                    height=inner_size,
+                                    corner_radius=inner_size//2,
+                                    border_width=2,
+                                    border_color="#ffffff60"
+                                )
+                                
+                                # Update text with dynamic sizing
+                                countdown_label.configure(
+                                    text=countdown_text,
+                                    font=ctk.CTkFont(size=font_size, weight="bold"),
+                                    text_color="white"
+                                )
+                                countdown_sub_label.configure(
+                                    text=sub_text,
+                                    text_color="#F3F4F6"
+                                )
+                                
+                                # Show all elements with layered effect
+                                countdown_outer_glow.place(relx=0.5, rely=0.5, anchor="center")
+                                countdown_middle_glow.place(relx=0.5, rely=0.5, anchor="center")
+                                countdown_frame.place(relx=0.5, rely=0.5, anchor="center")
+                                countdown_inner_highlight.place(relx=0.5, rely=0.5, anchor="center")
 
-                                # Enhanced countdown feedback
-                                if remaining_time <= 2:
-                                    instruction_text = f"📸 Capturing in {remaining_time}... Stay perfectly still!"
+                                # Enhanced countdown feedback with more dynamic messages
+                                if remaining_time <= 3:
+                                    instruction_text = f"📸 {sub_text} - Stay perfectly still!"
+                                else:
+                                    instruction_text = f"🎯 {sub_text} - Hold your pose steady!"
 
                             if remaining_time == 0:
                                 # Final capture with quality verification
@@ -1397,12 +1555,16 @@ if __name__ == "__main__":
                                     )
                                     instruction_text = "⚠️ Pose changed during capture - please try again"
                                 
-                                # Reset capture state
+                                # Reset capture state with enhanced cleanup
                                 countdown_start = None
                                 countdown_pose = None
                                 consecutive_good_poses = 0
                                 countdown_frame.place_forget()
+                                countdown_outer_glow.place_forget()
+                                countdown_middle_glow.place_forget()
+                                countdown_inner_highlight.place_forget()
                                 countdown_label.configure(text="")
+                                countdown_sub_label.configure(text="")
                                 
                             else:
                                 # Failed to read fresh frame for capture
@@ -1412,10 +1574,18 @@ if __name__ == "__main__":
                                 countdown_pose = None
                                 consecutive_good_poses = 0
                                 countdown_frame.place_forget()
+                                countdown_outer_glow.place_forget()
+                                countdown_middle_glow.place_forget()
+                                countdown_inner_highlight.place_forget()
                                 countdown_label.configure(text="")
+                                countdown_sub_label.configure(text="")
                         else:
                             countdown_frame.place_forget()
+                            countdown_outer_glow.place_forget()
+                            countdown_middle_glow.place_forget()
+                            countdown_inner_highlight.place_forget()
                             countdown_label.configure(text="")
+                            countdown_sub_label.configure(text="")
 
                         # Enhanced instruction feedback with emojis and colors
                         if instruction_text and instruction_text != last_instruction:
@@ -1486,6 +1656,11 @@ if __name__ == "__main__":
             side_img_label,
             live_feed_label,
             countdown_label,
+            countdown_sub_label,
+            countdown_frame,
+            countdown_outer_glow,
+            countdown_middle_glow,
+            countdown_inner_highlight,
             front_status,
             side_status,
         ):
@@ -1502,6 +1677,11 @@ if __name__ == "__main__":
                     side_img_label,
                     live_feed_label,
                     countdown_label,
+                    countdown_sub_label,
+                    countdown_frame,
+                    countdown_outer_glow,
+                    countdown_middle_glow,
+                    countdown_inner_highlight,
                     front_status,
                     side_status,
                 ),
@@ -1531,6 +1711,11 @@ if __name__ == "__main__":
                 side_img_label,
                 live_feed_label,
                 countdown_label,
+                countdown_sub_label,
+                countdown_frame,
+                countdown_outer_glow,
+                countdown_middle_glow,
+                countdown_inner_highlight,
                 front_status,
                 side_status,
             ),

@@ -307,16 +307,64 @@ class LiveCameraView(ctk.CTkFrame):
             pady=12
         )
         
-        # Countdown overlay
-        self.countdown_overlay = ctk.CTkLabel(
+        # Enhanced countdown overlay with multiple layers for beautiful effect
+        self.countdown_outer_glow = ctk.CTkFrame(
             self.camera_container,
+            width=180,
+            height=180,
+            corner_radius=90,
+            fg_color="transparent",
+            border_width=6,
+            border_color=ThemeManager.PRIMARY_COLOR
+        )
+        
+        self.countdown_middle_glow = ctk.CTkFrame(
+            self.camera_container,
+            width=160,
+            height=160,
+            corner_radius=80,
+            fg_color="transparent",
+            border_width=4,
+            border_color="#FFFFFF"
+        )
+        
+        self.countdown_overlay = ctk.CTkFrame(
+            self.camera_container,
+            width=140,
+            height=140,
+            corner_radius=70,
+            fg_color=ThemeManager.PRIMARY_COLOR,
+            border_width=3,
+            border_color="white"
+        )
+        
+        # Main countdown number
+        self.countdown_label = ctk.CTkLabel(
+            self.countdown_overlay,
             text="",
             font=ctk.CTkFont(size=48, weight="bold"),
-            text_color="white",
-            fg_color=ThemeManager.PRIMARY_COLOR,
-            corner_radius=50,
-            width=100,
-            height=100
+            text_color="white"
+        )
+        self.countdown_label.pack(expand=True)
+        
+        # Secondary countdown text
+        self.countdown_sub_label = ctk.CTkLabel(
+            self.countdown_overlay,
+            text="",
+            font=ctk.CTkFont(size=10, weight="bold"),
+            text_color="white"
+        )
+        self.countdown_sub_label.pack(pady=(0, 10))
+        
+        # Inner highlight ring for extra visual appeal
+        self.countdown_inner_highlight = ctk.CTkFrame(
+            self.camera_container,
+            width=120,
+            height=120,
+            corner_radius=60,
+            fg_color="transparent",
+            border_width=2,
+            border_color="#E5E7EB"  # Light gray instead of semi-transparent white
         )
         
         # Camera placeholder
@@ -358,13 +406,102 @@ class LiveCameraView(ctk.CTkFrame):
         self.instruction_overlay.place_forget()
     
     def show_countdown(self, count):
-        """Show countdown overlay"""
-        self.countdown_overlay.configure(text=str(count))
+        """Show enhanced countdown overlay with dynamic styling and animations"""
+        # Dynamic colors and effects based on countdown number
+        if count == 5:
+            main_color = "#3B82F6"  # Blue
+            glow_color = "#3B82F6"
+            sub_text = "GET READY"
+            size_multiplier = 1.0
+        elif count == 4:
+            main_color = "#8B5CF6"  # Purple
+            glow_color = "#8B5CF6"
+            sub_text = "HOLD POSE"
+            size_multiplier = 1.05
+        elif count == 3:
+            main_color = "#10B981"  # Green
+            glow_color = "#10B981"
+            sub_text = "STEADY"
+            size_multiplier = 1.1
+        elif count == 2:
+            main_color = "#F59E0B"  # Orange
+            glow_color = "#F59E0B"
+            sub_text = "ALMOST THERE"
+            size_multiplier = 1.15
+        else:  # count == 1
+            main_color = "#EF4444"  # Red
+            glow_color = "#EF4444"
+            sub_text = "SMILE!"
+            size_multiplier = 1.2
+        
+        # Calculate dynamic sizes (more conservative to avoid issues)
+        base_size = 140
+        outer_base = 180
+        middle_base = 160
+        inner_base = 120
+        
+        main_size = int(base_size * size_multiplier)
+        outer_size = int(outer_base * size_multiplier)
+        middle_size = int(middle_base * size_multiplier)
+        inner_size = int(inner_base * size_multiplier)
+        
+        font_size = min(int(48 * size_multiplier), 60)  # Cap the font size
+        
+        # Update outer glow
+        self.countdown_outer_glow.configure(
+            width=outer_size,
+            height=outer_size,
+            corner_radius=outer_size//2,
+            border_color=glow_color,
+            border_width=max(4, int(6 * size_multiplier))
+        )
+        
+        # Update middle glow
+        self.countdown_middle_glow.configure(
+            width=middle_size,
+            height=middle_size,
+            corner_radius=middle_size//2,
+            border_width=max(3, int(4 * size_multiplier))
+        )
+        
+        # Update main countdown frame
+        self.countdown_overlay.configure(
+            width=main_size,
+            height=main_size,
+            corner_radius=main_size//2,
+            fg_color=main_color,
+            border_width=max(2, int(3 * size_multiplier))
+        )
+        
+        # Update inner highlight
+        self.countdown_inner_highlight.configure(
+            width=inner_size,
+            height=inner_size,
+            corner_radius=inner_size//2,
+            border_width=max(1, int(2 * size_multiplier))
+        )
+        
+        # Update text
+        self.countdown_label.configure(
+            text=str(count),
+            font=ctk.CTkFont(size=font_size, weight="bold")
+        )
+        self.countdown_sub_label.configure(text=sub_text)
+        
+        # Position all elements centered
+        self.countdown_outer_glow.place(relx=0.5, rely=0.5, anchor="center")
+        self.countdown_middle_glow.place(relx=0.5, rely=0.5, anchor="center")
         self.countdown_overlay.place(relx=0.5, rely=0.5, anchor="center")
+        self.countdown_inner_highlight.place(relx=0.5, rely=0.5, anchor="center")
     
     def hide_countdown(self):
-        """Hide countdown overlay"""
+        """Hide all countdown overlay elements"""
+        self.countdown_outer_glow.place_forget()
+        self.countdown_middle_glow.place_forget()
         self.countdown_overlay.place_forget()
+        self.countdown_inner_highlight.place_forget()
+        self.countdown_label.configure(text="")
+        self.countdown_sub_label.configure(text="")
 
 
 class CapturePage(ctk.CTkFrame):

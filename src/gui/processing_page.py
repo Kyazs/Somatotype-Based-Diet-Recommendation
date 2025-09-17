@@ -723,50 +723,97 @@ class ProcessingPage(ctk.CTkFrame):
     def run_cnn_model(self):
         """Run CNN model for image processing"""
         try:
-            activate_script = os.path.join(VENV_DIR, "cnn_env", "Scripts", "activate")
+            # Use the virtual environment Python path directly
+            python_path = "C:/Users/LENOVO/Desktop/Kekious_Maximus/diet-recommendation-somatotype/.venv/cnn_env/Scripts/python.exe"
             cnn_script = os.path.join(CNN_DIR, "photos2avatar.py")
-            command = f'cmd.exe /c "{activate_script} && python {cnn_script}"'
+            command = f'"{python_path}" "{cnn_script}"'
+            
+            print(f"Running CNN command: {command}")
             
             process = subprocess.Popen(
                 command, cwd=CNN_DIR, stdout=subprocess.PIPE, 
                 stderr=subprocess.PIPE, text=True, shell=True
             )
-            process.wait()
+            
+            stdout, stderr = process.communicate()
+            
+            if stdout:
+                print(f"CNN stdout: {stdout}")
+            if stderr:
+                print(f"CNN stderr: {stderr}")
+            
             return process.returncode == 0
         except Exception as e:
             print(f"CNN model error: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def run_classifier(self):
         """Run classifier for somatotype detection"""
         try:
+            # Use the virtual environment Python path
+            python_path = "C:/Users/LENOVO/Desktop/Kekious_Maximus/diet-recommendation-somatotype/.venv/cnn_env/Scripts/python.exe"
             classifier_script = os.path.join(CLASSIFIER_DIR, "classifier.py")
-            command = f'cmd.exe /c "python {classifier_script}"'
+            command = f'"{python_path}" "{classifier_script}"'
+            
+            print(f"Running classifier command: {command}")
             
             process = subprocess.Popen(
                 command, cwd=CLASSIFIER_DIR, stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE, text=True, shell=True
             )
-            process.wait()
+            
+            stdout, stderr = process.communicate()
+            
+            if stdout:
+                print(f"Classifier stdout: {stdout}")
+            if stderr:
+                print(f"Classifier stderr: {stderr}")
+            
             return process.returncode == 0
         except Exception as e:
             print(f"Classifier error: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def run_recommender(self):
         """Run recommender for diet plan generation"""
         try:
             recommender_script = os.path.join(RECOMMENDER_DIR, "recommender.py")
-            command = f'cmd.exe /c "python {recommender_script}"'
+            
+            # Use the virtual environment Python path
+            python_path = "C:/Users/LENOVO/Desktop/Kekious_Maximus/diet-recommendation-somatotype/.venv/cnn_env/Scripts/python.exe"
+            
+            # Try the integration script first, then fall back to recommender.py
+            integration_script = os.path.join(RECOMMENDER_DIR, "integrate_recommendations.py")
+            
+            if os.path.exists(integration_script):
+                command = f'"{python_path}" "{integration_script}"'
+            else:
+                command = f'"{python_path}" "{recommender_script}"'
+            
+            print(f"Running command: {command}")
             
             process = subprocess.Popen(
                 command, cwd=RECOMMENDER_DIR, stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE, text=True, shell=True
             )
-            process.wait()
+            
+            stdout, stderr = process.communicate()
+            
+            # Print output for debugging
+            if stdout:
+                print(f"Recommender stdout: {stdout}")
+            if stderr:
+                print(f"Recommender stderr: {stderr}")
+            
             return process.returncode == 0
         except Exception as e:
             print(f"Recommender error: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def cancel_processing(self):

@@ -16,7 +16,7 @@ PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.append(PROJECT_DIR)
 
 from src.utils.utils import OUTPUT_FILES_DIR
-from utils.theme_manager import ThemeManager, IMAGES_DIR
+from src.utils.theme_manager import ThemeManager, IMAGES_DIR
 
 class MacronutrientChart(ctk.CTkFrame):
     """Custom macronutrient ratio chart with labels"""
@@ -320,75 +320,525 @@ class CalorieInfoCard(ctk.CTkFrame):
         self.calorie_value.configure(text=f"{self.calorie_intake}")
         self.goal_label.configure(text=f"Goal: {self.goal}")
 
-class FoodRecommendationCard(ctk.CTkFrame):
-    """Card showing recommended foods"""
+class MacronutrientDetailModal(ctk.CTkToplevel):
+    """Modal window showing detailed macronutrient information for a food item"""
     
-    def __init__(self, parent, foods=None, category="Recommended"):
-        super().__init__(parent, corner_radius=10, fg_color=ThemeManager.get_card_fg_color())
-        
-        if foods is None:
-            foods = ["Loading..."]
-            
-        # Configure grid
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)  # Make the food list expandable
+    def __init__(self, parent, food_data):
+        super().__init__(parent)
+        self.food_data = food_data
+
+        # Window setup - wrap window manager calls to avoid invalid handle errors
+        try:
+            self.title("Food Nutrition Details")
+        except Exception:
+            pass
+
+        try:
+            self.geometry("500x600")
+            self.resizable(False, False)
+        except Exception:
+            # Some platforms may not support geometry calls on certain toplevels
+            pass
+
+        # Try to set transient and grab, but don't crash if OS-level handles are invalid
+        try:
+            if parent is not None:
+                try:
+                    self.transient(parent)
+                except Exception:
+                    # transient may fail if parent handle is invalid
+                    pass
+
+            try:
+                self.grab_set()
+            except Exception:
+                # grab_set can raise TclError on some systems or if called from non-main thread
+                pass
+        except Exception:
+            # Ignore any errors related to window manager operations
+            pass
+
+        # Configure
+        try:
+            self.configure(fg_color=ThemeManager.BG_COLOR)
+        except Exception:
+            pass
+        try:
+            self.grid_columnconfigure(0, weight=1)
+            self.grid_rowconfigure(1, weight=1)
+        except Exception:
+            pass
         
         # Header
-        self.header = ctk.CTkLabel(
-            self,
-            text=f"{category} Foods",
+        header_frame = ctk.CTkFrame(self, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
+        header_frame.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
+        header_frame.grid_columnconfigure(0, weight=1)
+        
+        # Food name
+        food_name = ctk.CTkLabel(
+            header_frame,
+            text=food_data.get('Food_Item', 'Unknown Food'),
+            font=ThemeManager.get_title_font(),
+            text_color=ThemeManager.PRIMARY_COLOR,
+            wraplength=450
+        )
+        food_name.grid(row=0, column=0, padx=20, pady=15)
+        
+        # Category and portion
+        category_text = f"Category: {food_data.get('Enhanced_Category', 'N/A').title().replace('_', ' ')}"
+        portion_text = f"Recommended Portion: {food_data.get('Portion_Recommendation', 'N/A')}"
+        
+        category_label = ctk.CTkLabel(
+            header_frame,
+            text=f"{category_text} | {portion_text}",
+            font=ThemeManager.get_small_font(),
+            text_color=ThemeManager.GRAY_MEDIUM
+        )
+        category_label.grid(row=1, column=0, padx=20, pady=(0, 15))
+        
+        # Scrollable content
+        content_scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        content_scroll.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
+        content_scroll.grid_columnconfigure(0, weight=1)
+        
+        # Main macronutrients
+        macro_frame = ctk.CTkFrame(content_scroll, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
+        macro_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        macro_frame.grid_columnconfigure((0, 1), weight=1)
+        
+        macro_title = ctk.CTkLabel(
+            macro_frame,
+            text="Macronutrients (per 100g)",
             font=ThemeManager.get_subtitle_font(),
             text_color=ThemeManager.PRIMARY_COLOR
         )
-        self.header.grid(row=0, column=0, padx=15, pady=(15, 10), sticky="w")
+        macro_title.grid(row=0, column=0, columnspan=2, padx=15, pady=(15, 10))
         
-        # Scrollable food list
-        self.food_scroll = ctk.CTkScrollableFrame(
-            self,
-            fg_color=ThemeManager.BG_COLOR,
-            corner_radius=5
+        # Main macros
+        self._create_nutrient_row(macro_frame, "Calories", f"{food_data.get('Calories_kcal', 0):.0f} kcal", 1, 0)
+        self._create_nutrient_row(macro_frame, "Protein", f"{food_data.get('Protein_g', 0):.1f} g", 2, 0)
+        self._create_nutrient_row(macro_frame, "Carbohydrates", f"{food_data.get('Carbohydrates_g', 0):.1f} g", 1, 1)
+        self._create_nutrient_row(macro_frame, "Fat", f"{food_data.get('Fat_g', 0):.1f} g", 2, 1)
+        
+        # Additional nutrients
+        additional_frame = ctk.CTkFrame(content_scroll, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
+        additional_frame.grid(row=1, column=0, sticky="ew", pady=(0, 10))
+        additional_frame.grid_columnconfigure((0, 1), weight=1)
+        
+        additional_title = ctk.CTkLabel(
+            additional_frame,
+            text="Additional Nutrients",
+            font=ThemeManager.get_subtitle_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
         )
-        self.food_scroll.grid(row=1, column=0, padx=15, pady=(0, 15), sticky="nsew")
-        self.food_scroll.grid_columnconfigure(0, weight=1)
+        additional_title.grid(row=0, column=0, columnspan=2, padx=15, pady=(15, 10))
         
-        # Add foods
-        self.foods = foods
-        self.food_labels = []
-        self.update_foods(foods)
+        self._create_nutrient_row(additional_frame, "Fiber", f"{food_data.get('Fiber_g', 0):.1f} g", 1, 0)
+        self._create_nutrient_row(additional_frame, "Sugars", f"{food_data.get('Sugars_g', 0):.1f} g", 2, 0)
+        self._create_nutrient_row(additional_frame, "Sodium", f"{food_data.get('Sodium_mg', 0):.0f} mg", 1, 1)
+        self._create_nutrient_row(additional_frame, "Cholesterol", f"{food_data.get('Cholesterol_mg', 0):.0f} mg", 2, 1)
+        
+        # Somatotype scores
+        scores_frame = ctk.CTkFrame(content_scroll, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
+        scores_frame.grid(row=2, column=0, sticky="ew", pady=(0, 10))
+        scores_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        
+        scores_title = ctk.CTkLabel(
+            scores_frame,
+            text="Body Type Suitability Scores",
+            font=ThemeManager.get_subtitle_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        scores_title.grid(row=0, column=0, columnspan=3, padx=15, pady=(15, 10))
+        
+        self._create_score_item(scores_frame, "Ectomorph", food_data.get('Ectomorph_Score', 0), 1, 0)
+        self._create_score_item(scores_frame, "Mesomorph", food_data.get('Mesomorph_Score', 0), 1, 1)
+        self._create_score_item(scores_frame, "Endomorph", food_data.get('Endomorph_Score', 0), 1, 2)
+        
+        # Close button
+        close_btn = ctk.CTkButton(
+            self,
+            text="Close",
+            command=self.destroy,
+            font=ThemeManager.get_label_font(),
+            fg_color=ThemeManager.PRIMARY_COLOR,
+            hover_color=ThemeManager.PRIMARY_HOVER
+        )
+        close_btn.grid(row=2, column=0, pady=20)
+        
+        # Ensure the window can be closed cleanly and shown properly
+        try:
+            self.protocol("WM_DELETE_WINDOW", self.destroy)
+        except Exception:
+            pass
+            
+        # Focus the modal window
+        try:
+            self.lift()
+            self.focus_force()
+        except Exception:
+            # If focus fails, just continue - the modal is still created
+            pass
     
-    def update_foods(self, foods):
-        """Update the list of foods"""
-        # Clear existing food labels
-        for label in self.food_labels:
-            label.destroy()
+    def _create_nutrient_row(self, parent, label, value, row, col):
+        """Create a nutrient information row"""
+        nutrient_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        nutrient_frame.grid(row=row, column=col, padx=15, pady=5, sticky="ew")
         
-        self.food_labels = []
-        self.foods = foods
+        label_widget = ctk.CTkLabel(
+            nutrient_frame,
+            text=f"{label}:",
+            font=ThemeManager.get_small_font(),
+            text_color=ThemeManager.GRAY_DARK,
+            anchor="w"
+        )
+        label_widget.pack(anchor="w")
         
-        # Add food items
-        for i, food in enumerate(foods):
-            food_item = ctk.CTkFrame(self.food_scroll, fg_color="transparent")
-            food_item.grid(row=i, column=0, sticky="ew", pady=2)
-            food_item.grid_columnconfigure(1, weight=1)
+        value_widget = ctk.CTkLabel(
+            nutrient_frame,
+            text=value,
+            font=ThemeManager.get_label_font(),
+            text_color=ThemeManager.PRIMARY_COLOR,
+            anchor="w"
+        )
+        value_widget.pack(anchor="w")
+    
+    def _create_score_item(self, parent, label, score, row, col):
+        """Create a somatotype score item"""
+        score_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        score_frame.grid(row=row, column=col, padx=10, pady=10)
+        
+        # Score circle
+        score_color = ThemeManager.SUCCESS_COLOR if score >= 7 else ThemeManager.WARNING_COLOR if score >= 5 else ThemeManager.DANGER_COLOR
+        
+        circle = ctk.CTkFrame(
+            score_frame,
+            width=50,
+            height=50,
+            corner_radius=25,
+            fg_color=score_color,
+            border_width=2,
+            border_color=ThemeManager.GRAY_LIGHT
+        )
+        circle.pack()
+        circle.grid_propagate(False)
+        
+        score_label = ctk.CTkLabel(
+            circle,
+            text=str(int(score)),
+            font=ThemeManager.get_label_font(),
+            text_color="white"
+        )
+        score_label.place(relx=0.5, rely=0.5, anchor="center")
+        
+        # Label
+        name_label = ctk.CTkLabel(
+            score_frame,
+            text=label,
+            font=ThemeManager.get_small_font(),
+            text_color=ThemeManager.GRAY_DARK
+        )
+        name_label.pack(pady=(5, 0))
+
+class FoodCard(ctk.CTkFrame):
+    """Individual food card with macronutrient preview"""
+    
+    def __init__(self, parent, food_data, on_click_callback=None):
+        super().__init__(parent, 
+                         corner_radius=12, 
+                         fg_color=ThemeManager.get_card_fg_color(),
+                         border_width=1,
+                         border_color=ThemeManager.GRAY_LIGHT)
+        
+        self.food_data = food_data
+        self.on_click_callback = on_click_callback
+        
+        # Fixed width for horizontal scrolling
+        self.configure(width=280, height=140)
+        self.grid_propagate(False)
+        
+        # Configure grid
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(2, weight=1)
+        
+        # Food name
+        self.name_label = ctk.CTkLabel(
+            self,
+            text=food_data.get('Food_Item', 'Unknown Food'),
+            font=ThemeManager.get_label_font(),
+            text_color=ThemeManager.PRIMARY_COLOR,
+            wraplength=260,
+            anchor="w",
+            justify="left"
+        )
+        self.name_label.grid(row=0, column=0, padx=12, pady=(12, 5), sticky="ew")
+        
+        # Macro preview
+        calories = food_data.get('Calories_kcal', 0)
+        protein = food_data.get('Protein_g', 0)
+        carbs = food_data.get('Carbohydrates_g', 0)
+        fat = food_data.get('Fat_g', 0)
+        
+        macro_text = f"{calories:.0f} kcal • {protein:.1f}g protein • {carbs:.1f}g carbs • {fat:.1f}g fat"
+        
+        self.macro_label = ctk.CTkLabel(
+            self,
+            text=macro_text,
+            font=ThemeManager.get_small_font(),
+            text_color=ThemeManager.GRAY_MEDIUM,
+            wraplength=260,
+            anchor="w",
+            justify="left"
+        )
+        self.macro_label.grid(row=1, column=0, padx=12, pady=(0, 5), sticky="ew")
+        
+        # Portion and category info
+        portion = food_data.get('Portion_Recommendation', 'N/A')
+        category = food_data.get('Enhanced_Category', 'other').title().replace('_', ' ')
+        
+        info_text = f"Portion: {portion} | {category}"
+        
+        self.info_label = ctk.CTkLabel(
+            self,
+            text=info_text,
+            font=ThemeManager.get_small_font(),
+            text_color=ThemeManager.GRAY_MEDIUM,
+            wraplength=260,
+            anchor="w",
+            justify="left"
+        )
+        self.info_label.grid(row=2, column=0, padx=12, pady=(0, 5), sticky="new")
+        
+        # Click to view more button
+        self.more_btn = ctk.CTkButton(
+            self,
+            text="View Details",
+            font=ThemeManager.get_small_font(),
+            fg_color=ThemeManager.PRIMARY_COLOR,
+            hover_color=ThemeManager.PRIMARY_HOVER,
+            height=28,
+            command=self._on_card_clicked
+        )
+        self.more_btn.grid(row=3, column=0, padx=12, pady=(0, 12), sticky="ew")
+        
+        # Make the entire card clickable
+        self.bind("<Button-1>", lambda e: self._on_card_clicked())
+        self.name_label.bind("<Button-1>", lambda e: self._on_card_clicked())
+        self.macro_label.bind("<Button-1>", lambda e: self._on_card_clicked())
+        self.info_label.bind("<Button-1>", lambda e: self._on_card_clicked())
+    
+    def _on_card_clicked(self):
+        """Handle card click to show detailed nutrition info"""
+        try:
+            if self.on_click_callback:
+                # If caller provided a callback, use it
+                self.on_click_callback(self.food_data)
+                return
+
+            # Get the toplevel window safely
+            try:
+                parent = self.winfo_toplevel()
+                # Use after() to schedule modal creation on main thread
+                parent.after(0, lambda: self._create_modal_safely(parent, self.food_data))
+            except Exception as inner_e:
+                raise inner_e
+
+        except Exception as e:
+            # Log the error
+            import traceback
+            print(f"Error in _on_card_clicked: {e}")
+            traceback.print_exc()
+
+            # Show error message safely
+            try:
+                import tkinter as tk
+                from tkinter import messagebox
+                messagebox.showerror("Error", f"Could not open food details: {str(e)}")
+            except:
+                print(f"Could not show error dialog: {e}")
+                
+    def _create_modal_safely(self, parent, food_data):
+        """Safely create the modal window"""
+        try:
+            MacronutrientDetailModal(parent, food_data)
+        except Exception as e:
+            print(f"Error creating modal: {e}")
+            import traceback
+            traceback.print_exc()
             
-            bullet = ctk.CTkLabel(
-                food_item,
-                text="•",
+            try:
+                import tkinter as tk
+                from tkinter import messagebox
+                messagebox.showerror("Error", f"Could not open food details: {str(e)}", parent=parent)
+            except:
+                print("Could not show error dialog")
+
+class MealCategoryCard(ctk.CTkFrame):
+    """Card showing foods for a specific meal category with horizontal scrolling"""
+    
+    def __init__(self, parent, meal_type, foods_data, on_food_click=None):
+        super().__init__(parent, corner_radius=15, fg_color=ThemeManager.get_card_fg_color())
+        
+        self.meal_type = meal_type
+        self.foods_data = foods_data or []
+        self.on_food_click = on_food_click
+        
+        # Configure grid
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        
+        # Header with meal type and count
+        header_frame = ctk.CTkFrame(self, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 10))
+        header_frame.grid_columnconfigure(0, weight=1)
+        
+        meal_icon = {"breakfast": "🌅", "lunch": "☀️", "dinner": "🌙", "snack": "🍎"}
+        
+        self.header_label = ctk.CTkLabel(
+            header_frame,
+            text=f"{meal_icon.get(meal_type.lower(), '🍽️')} {meal_type.title()} ({len(self.foods_data)} options)",
+            font=ThemeManager.get_subtitle_font(),
+            text_color=ThemeManager.PRIMARY_COLOR,
+            anchor="w"
+        )
+        self.header_label.grid(row=0, column=0, sticky="w")
+        
+        # Horizontal scrollable food container
+        if self.foods_data:
+            self.food_container = ctk.CTkScrollableFrame(
+                self,
+                orientation="horizontal",
+                fg_color=ThemeManager.BG_COLOR,
+                corner_radius=10,
+                height=160
+            )
+            self.food_container.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 20))
+            
+            # Add food cards horizontally
+            for i, food_data in enumerate(self.foods_data):
+                food_card = FoodCard(
+                    self.food_container, 
+                    food_data, 
+                    on_click_callback=self.on_food_click
+                )
+                food_card.grid(row=0, column=i, padx=(0, 12), sticky="ns")
+        else:
+            # No foods available message
+            no_foods_frame = ctk.CTkFrame(self, fg_color=ThemeManager.GRAY_LIGHT, corner_radius=10, height=100)
+            no_foods_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 20))
+            no_foods_frame.grid_propagate(False)
+            
+            no_foods_label = ctk.CTkLabel(
+                no_foods_frame,
+                text=f"No {meal_type.lower()} options available",
                 font=ThemeManager.get_label_font(),
-                text_color=ThemeManager.PRIMARY_COLOR
+                text_color=ThemeManager.GRAY_MEDIUM
             )
-            bullet.grid(row=0, column=0, padx=(0, 5))
-            
-            food_label = ctk.CTkLabel(
-                food_item,
-                text=food.strip(),
-                font=ThemeManager.get_small_font(),
-                anchor="w",
-                justify="left"
+            no_foods_label.place(relx=0.5, rely=0.5, anchor="center")
+    
+    def update_foods(self, foods_data):
+        """Update the foods in this meal category"""
+        self.foods_data = foods_data or []
+        
+        # Update header count
+        meal_icon = {"breakfast": "🌅", "lunch": "☀️", "dinner": "🌙", "snack": "🍎"}
+        self.header_label.configure(
+            text=f"{meal_icon.get(self.meal_type.lower(), '🍽️')} {self.meal_type.title()} ({len(self.foods_data)} options)"
+        )
+        
+        # Clear and rebuild food container
+        if hasattr(self, 'food_container'):
+            self.food_container.destroy()
+        
+        if self.foods_data:
+            self.food_container = ctk.CTkScrollableFrame(
+                self,
+                orientation="horizontal",
+                fg_color=ThemeManager.BG_COLOR,
+                corner_radius=10,
+                height=160
             )
-            food_label.grid(row=0, column=1, sticky="w")
+            self.food_container.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 20))
             
-            self.food_labels.append(food_item)
+            # Add food cards horizontally
+            for i, food_data in enumerate(self.foods_data):
+                food_card = FoodCard(
+                    self.food_container, 
+                    food_data, 
+                    on_click_callback=self.on_food_click
+                )
+                food_card.grid(row=0, column=i, padx=(0, 12), sticky="ns")
+
+class MealBasedFoodRecommendations(ctk.CTkFrame):
+    """Component showing food recommendations categorized by meal type"""
+    
+    def __init__(self, parent):
+        super().__init__(parent, fg_color="transparent")
+        
+        # Configure grid
+        self.grid_columnconfigure(0, weight=1)
+        
+        # Title
+        self.title_label = ctk.CTkLabel(
+            self,
+            text="🍽️ Personalized Food Recommendations",
+            font=ThemeManager.get_title_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        self.title_label.grid(row=0, column=0, pady=(0, 20))
+        
+        # Meal category containers
+        self.meal_cards = {}
+        self.current_row = 1
+        
+        # Initialize with empty meal categories
+        self.init_meal_categories()
+    
+    def init_meal_categories(self):
+        """Initialize empty meal category cards"""
+        meal_types = ['breakfast', 'lunch', 'dinner', 'snack']
+        
+        for i, meal_type in enumerate(meal_types):
+            meal_card = MealCategoryCard(
+                self, 
+                meal_type, 
+                [], 
+                on_food_click=self._show_food_details
+            )
+            meal_card.grid(row=self.current_row + i, column=0, sticky="ew", pady=(0, 15))
+            self.meal_cards[meal_type] = meal_card
+    
+    def update_recommendations(self, meal_recommendations):
+        """Update all meal recommendations"""
+        for meal_type, foods in meal_recommendations.items():
+            if meal_type in self.meal_cards:
+                self.meal_cards[meal_type].update_foods(foods)
+    
+    def _show_food_details(self, food_data):
+        """Show detailed nutrition information for a food item"""
+        try:
+            # Get the actual root window to avoid handle issues
+            root = self.winfo_toplevel()
+            # Use after() to create modal on main thread
+            root.after(0, lambda: self._create_modal_safely(root, food_data))
+        except Exception as e:
+            print(f"Error showing food details: {e}")
+            import traceback
+            traceback.print_exc()
+            
+    def _create_modal_safely(self, parent, food_data):
+        """Safely create the modal window"""
+        try:
+            MacronutrientDetailModal(parent, food_data)
+        except Exception as e:
+            print(f"Error creating modal: {e}")
+            # Show simple error message
+            try:
+                import tkinter as tk
+                from tkinter import messagebox
+                messagebox.showerror("Error", f"Could not open food details: {str(e)}", parent=parent)
+            except:
+                print("Could not show error dialog")
 
 class DietPage(ctk.CTkFrame):
     """Page showing personalized diet recommendations and somatotype analysis"""
@@ -479,18 +929,9 @@ class DietPage(ctk.CTkFrame):
         # Somatotype visualization (initialized later)
         self.soma_visual = None
         
-        # Fourth row: Recommended foods
-        self.recommended_foods = FoodRecommendationCard(
-            self.content_scroll,
-            category="Recommended"
-        )
-        self.recommended_foods.grid(row=3, column=0, sticky="nsew", padx=(0, 10), pady=(0, 15))
-        
-        # self.avoid_foods = FoodRecommendationCard(
-        #     self.content_scroll,
-        #     category="Limit or Avoid"
-        # )
-        # self.avoid_foods.grid(row=3, column=1, sticky="nsew", padx=(10, 0), pady=(0, 15))
+        # Fourth row: Meal-based food recommendations
+        self.meal_recommendations = MealBasedFoodRecommendations(self.content_scroll)
+        self.meal_recommendations.grid(row=3, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
         
         # Footer with navigation buttons
         self.footer_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -570,95 +1011,174 @@ class DietPage(ctk.CTkFrame):
             self.display_error(f"Error loading data: {str(e)}")
     
     def process_recommendation_data(self, data):
-        """Process and display diet recommendation data"""
+        """Process and display diet recommendation data using the new diet engine"""
         try:
-            # Extract macronutrient data (typically first few rows)
-            # Check if data has enough rows and expected columns
-            if len(data) < 3 or 'Macronutrient' not in data.columns or 'Value' not in data.columns:
-                print("Recommendation data doesn't have expected structure")
-                # Set default macronutrient values
-                protein_val = 30
-                carbs_val = 45
-                fat_val = 25
-            else:
-                # Try to find macronutrient values
-                protein_val = 30
-                carbs_val = 45
-                fat_val = 25
-                
-                try:
-                    if 'Protein' in data['Macronutrient'].values:
-                        protein_row = data[data['Macronutrient'] == 'Protein']
-                        if not protein_row.empty and pd.notna(protein_row['Value'].iloc[0]):
-                            protein_val = int(float(protein_row['Value'].iloc[0]))
-                except Exception as e:
-                    print(f"Error extracting protein value: {str(e)}")
-                
-                try:
-                    if 'Carbohydrates' in data['Macronutrient'].values:
-                        carbs_row = data[data['Macronutrient'] == 'Carbohydrates']
-                        if not carbs_row.empty and pd.notna(carbs_row['Value'].iloc[0]):
-                            carbs_val = int(float(carbs_row['Value'].iloc[0]))
-                except Exception as e:
-                    print(f"Error extracting carbohydrates value: {str(e)}")
-                
-                try:
-                    if 'Fat' in data['Macronutrient'].values:
-                        fat_row = data[data['Macronutrient'] == 'Fat']
-                        if not fat_row.empty and pd.notna(fat_row['Value'].iloc[0]):
-                            fat_val = int(float(fat_row['Value'].iloc[0]))
-                except Exception as e:
-                    print(f"Error extracting fat value: {str(e)}")
+            # Import diet engine
+            from src.recommendation.diet_engine import DietRecommendationEngine
+            
+            # Initialize the diet engine
+            engine = DietRecommendationEngine()
+            
+            # Generate meal-based recommendations
+            meal_recommendations = engine.generate_meal_based_recommendations()
+            
+            # Store meal recommendations data for testing/debugging
+            self.meal_recommendations_data = meal_recommendations
+            
+            # Also get comprehensive recommendations for macronutrient data
+            comprehensive_recs = engine.generate_comprehensive_recommendations()
+            macros = comprehensive_recs.get('macros', {})
+            
+            # Extract macronutrient percentages
+            total_calories = macros.get('calories', 2000)
+            protein_g = macros.get('protein_g', 150)
+            carbs_g = macros.get('carbs_g', 200)
+            fat_g = macros.get('fat_g', 70)
+            
+            # Calculate percentages
+            protein_cal = protein_g * 4
+            carbs_cal = carbs_g * 4
+            fat_cal = fat_g * 9
+            
+            protein_pct = int((protein_cal / total_calories) * 100) if total_calories > 0 else 30
+            carbs_pct = int((carbs_cal / total_calories) * 100) if total_calories > 0 else 45
+            fat_pct = int((fat_cal / total_calories) * 100) if total_calories > 0 else 25
+            
+            # Ensure percentages add up to 100
+            total_pct = protein_pct + carbs_pct + fat_pct
+            if total_pct != 100:
+                diff = 100 - total_pct
+                carbs_pct += diff  # Adjust carbs if there's a difference
             
             # Create and place the macronutrient chart 
+            if self.macro_chart:
+                self.macro_chart.destroy()
+            
             self.macro_chart = MacronutrientChart(
                 self.macro_frame, 
-                protein=protein_val, 
-                carbs=carbs_val, 
-                fat=fat_val
+                protein=protein_pct, 
+                carbs=carbs_pct, 
+                fat=fat_pct
             )
             self.macro_chart.pack(fill="both", expand=True, padx=15, pady=15)
             
-            # Extract food recommendations (subsequent rows)
-            try:
-                # Try to find recommended foods
-                recommended_foods = []
-                avoid_foods = []
-                foods_section = "recommended"
-                
-                # Check if data has enough rows for food recommendations
-                if len(data) > 4:
-                    for i in range(4, len(data)):
-                        if i < len(data) and len(data.iloc[i]) > 0:
-                            food_item = str(data.iloc[i, 0]).strip() if pd.notna(data.iloc[i, 0]) else ""
-                            
-                            if food_item.lower() == "foods to avoid:" or "avoid" in food_item.lower():
-                                foods_section = "avoid"
-                                continue
-                                
-                            if food_item and not pd.isna(food_item) and food_item != "nan":
-                                if foods_section == "recommended":
-                                    recommended_foods.append(food_item)
-                                else:
-                                    avoid_foods.append(food_item)
-                
-                # Update food recommendation cards
-                if recommended_foods:
-                    self.recommended_foods.update_foods(recommended_foods)
-                # if avoid_foods:
-                #     self.avoid_foods.update_foods(avoid_foods)
-                # else:
-                #     self.avoid_foods.update_foods(["No specific foods to avoid"])
-                
-            except Exception as e:
-                print(f"Error extracting food recommendations: {str(e)}")
-                # Still show empty food cards if this part fails
-                self.recommended_foods.update_foods(["Lean protein", "Whole grains", "Fresh fruits", "Vegetables", "Healthy fats"])
-                self.avoid_foods.update_foods(["Processed foods", "Sugary drinks", "Excessive sodium", "Trans fats"])
+            # Update calorie info
+            goal = macros.get('goal', 'maintain_weight').replace('_', ' ').title()
+            self.calories_card.update_values(int(total_calories), goal)
+            
+            # Update meal-based food recommendations
+            self.meal_recommendations.update_recommendations(meal_recommendations)
             
         except Exception as e:
             print(f"Error processing recommendation data: {str(e)}")
-            self.display_error(f"Error processing recommendation data")
+            # Fallback to basic display
+            self._show_fallback_recommendations()
+    
+    def _show_fallback_recommendations(self):
+        """Show fallback recommendations when data loading fails"""
+        try:
+            # Set default macronutrient chart
+            if self.macro_chart:
+                self.macro_chart.destroy()
+            
+            self.macro_chart = MacronutrientChart(
+                self.macro_frame, 
+                protein=30, 
+                carbs=45, 
+                fat=25
+            )
+            self.macro_chart.pack(fill="both", expand=True, padx=15, pady=15)
+            
+            # Set default calorie info
+            self.calories_card.update_values(2000, "Maintain Weight")
+            
+            # Set fallback meal recommendations
+            fallback_meals = {
+                'breakfast': [
+                    {
+                        'Food_Item': 'Greek Yogurt',
+                        'Enhanced_Category': 'dairy_proteins',
+                        'Calories_kcal': 150,
+                        'Protein_g': 15,
+                        'Carbohydrates_g': 20,
+                        'Fat_g': 3,
+                        'Fiber_g': 3,
+                        'Sugars_g': 15,
+                        'Sodium_mg': 50,
+                        'Portion_Recommendation': '150-200g',
+                        'Overall_Quality': 9,
+                        'Ectomorph_Score': 8,
+                        'Mesomorph_Score': 9,
+                        'Endomorph_Score': 7,
+                        'Cholesterol_mg': 10
+                    }
+                ],
+                'lunch': [
+                    {
+                        'Food_Item': 'Chicken Breast',
+                        'Enhanced_Category': 'lean_proteins',
+                        'Calories_kcal': 165,
+                        'Protein_g': 31,
+                        'Carbohydrates_g': 0,
+                        'Fat_g': 3.6,
+                        'Fiber_g': 0,
+                        'Sugars_g': 0,
+                        'Sodium_mg': 74,
+                        'Portion_Recommendation': '100-150g',
+                        'Overall_Quality': 9,
+                        'Ectomorph_Score': 7,
+                        'Mesomorph_Score': 9,
+                        'Endomorph_Score': 8,
+                        'Cholesterol_mg': 85
+                    }
+                ],
+                'dinner': [
+                    {
+                        'Food_Item': 'Salmon',
+                        'Enhanced_Category': 'healthy_fats',
+                        'Calories_kcal': 208,
+                        'Protein_g': 28.5,
+                        'Carbohydrates_g': 0,
+                        'Fat_g': 9.1,
+                        'Fiber_g': 0,
+                        'Sugars_g': 0,
+                        'Sodium_mg': 69,
+                        'Portion_Recommendation': '100-150g',
+                        'Overall_Quality': 10,
+                        'Ectomorph_Score': 8,
+                        'Mesomorph_Score': 9,
+                        'Endomorph_Score': 8,
+                        'Cholesterol_mg': 70
+                    }
+                ],
+                'snack': [
+                    {
+                        'Food_Item': 'Mixed Nuts',
+                        'Enhanced_Category': 'healthy_fats',
+                        'Calories_kcal': 607,
+                        'Protein_g': 20,
+                        'Carbohydrates_g': 21,
+                        'Fat_g': 54,
+                        'Fiber_g': 8,
+                        'Sugars_g': 4,
+                        'Sodium_mg': 16,
+                        'Portion_Recommendation': '30-40g',
+                        'Overall_Quality': 8,
+                        'Ectomorph_Score': 9,
+                        'Mesomorph_Score': 8,
+                        'Endomorph_Score': 6,
+                        'Cholesterol_mg': 0
+                    }
+                ]
+            }
+            
+            # Store fallback meal recommendations data for testing/debugging
+            self.meal_recommendations_data = fallback_meals
+            
+            self.meal_recommendations.update_recommendations(fallback_meals)
+            
+        except Exception as e:
+            print(f"Error showing fallback recommendations: {str(e)}")
     
     def process_classification_data(self, data):
         """Process and display somatotype classification data"""
