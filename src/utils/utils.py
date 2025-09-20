@@ -5,6 +5,7 @@ import os
 # Your path definitions
 UTILS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
 PROJECT_DIR = os.path.abspath(os.path.join(UTILS_DIR, '../'))
+BASE_DIR = PROJECT_DIR  # Alias for compatibility
 VENV_DIR = os.path.join(PROJECT_DIR, '.venv')
 INPUT_FILES_DIR = os.path.join(PROJECT_DIR, 'data/input_files')
 OUTPUT_FILES_DIR = os.path.join(PROJECT_DIR, 'data/output_files')
@@ -18,6 +19,7 @@ RECOMMENDER_DIR = os.path.join(PROJECT_DIR, 'src/recommendation')
 __all__ = [
     "UTILS_DIR",
     "PROJECT_DIR",
+    "BASE_DIR",
     "VENV_DIR",
     "INPUT_FILES_DIR",
     "OUTPUT_FILES_DIR",

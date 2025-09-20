@@ -15,15 +15,48 @@ class InputPage(ctk.CTkFrame):
         super().__init__(parent, fg_color=ThemeManager.BG_COLOR)
         self.controller = controller
         
+        # Initialize basic layout immediately for fast load
+        self._init_basic_layout()
+        
+        # Flag to track if content has been loaded
+        self._content_loaded = False
+        
+    def _init_basic_layout(self):
+        """Initialize basic layout structure quickly"""
         # Configure grid layout
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
         
         # Create scrollable frame to contain all content
-        self.scrollable_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.scrollable_frame = ctk.CTkScrollableFrame(
+            self, 
+            fg_color="transparent",
+            corner_radius=0,
+            border_width=0
+        )
         self.scrollable_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
         self.scrollable_frame.grid_columnconfigure(0, weight=1)
         
+        # Initialize scroll throttling variables
+        self._scroll_job = None
+        self._last_scroll_time = 0
+        
+        # Bind mousewheel event to scrollable frame
+        self.scrollable_frame.bind("<MouseWheel>", self._on_mousewheel)
+        self.scrollable_frame.bind("<Button-4>", self._on_mousewheel)  # Linux
+        self.scrollable_frame.bind("<Button-5>", self._on_mousewheel)  # Linux
+        
+    def load_content(self):
+        """Load the actual content when page is shown"""
+        if self._content_loaded:
+            return
+            
+        # Load actual content immediately - no loading indicator
+        self._init_content_layout()
+        self._content_loaded = True
+        
+    def _init_content_layout(self):
+        """Initialize the full content layout"""
         # Header with title and back button
         self.header_frame = ctk.CTkFrame(self.scrollable_frame, fg_color="transparent")
         self.header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 20))
@@ -33,7 +66,7 @@ class InputPage(ctk.CTkFrame):
         self.back_button = ThemeManager.create_secondary_button(
             self.header_frame,
             "Back",
-            lambda: controller.show_frame("LandingPage")
+            lambda: self.controller.show_frame("LandingPage")
         )
         self.back_button.grid(row=0, column=0, padx=(0, 20))
         
@@ -174,35 +207,6 @@ class InputPage(ctk.CTkFrame):
         ]
         self.activity_dropdown = ThemeManager.create_dropdown(self.form_card, self.activity_options)
         self.activity_dropdown.grid(row=9, column=0, sticky="ew", padx=20, pady=(0, 15), columnspan=2)
-        
-        # Allergies/Dietary Restrictions (Optional)
-        # self.allergies_label = ThemeManager.create_label(self.form_card, "Allergies or Dietary Restrictions (Optional)", bold=True)
-        # self.allergies_label.grid(row=10, column=0, sticky="w", padx=20, pady=(0, 5), columnspan=2)
-        
-        # # Allergies as checkboxes
-        # self.allergies_frame = ctk.CTkFrame(self.form_card, fg_color="transparent")
-        # self.allergies_frame.grid(row=11, column=0, sticky="ew", padx=20, pady=(0, 20), columnspan=2)
-        # self.allergies_frame.grid_columnconfigure((0, 1, 2), weight=1)
-        
-        # # Create allergy checkboxes
-        # self.allergy_vars = {}
-        # allergy_options = ["Dairy", "Eggs", "Peanuts", "Tree Nuts", "Soy", "Wheat", "Gluten", "Fish", "Shellfish", "Sesame"]
-        
-        # for i, allergy in enumerate(allergy_options):
-        #     # Calculate row and column (3 columns grid)
-        #     row_idx = i // 3
-        #     col_idx = i % 3
-            
-        #     self.allergy_vars[allergy] = ctk.BooleanVar(value=False)
-        #     checkbox = ctk.CTkCheckBox(
-        #         self.allergies_frame,
-        #         text=allergy,
-        #         variable=self.allergy_vars[allergy],
-        #         font=ThemeManager.get_small_font(),
-        #         checkbox_height=20,
-        #         checkbox_width=20
-        #     )
-        #     checkbox.grid(row=row_idx, column=col_idx, padx=10, pady=5, sticky="w")
         
         # Submit button
         self.submit_button = ThemeManager.create_primary_button(
@@ -381,6 +385,9 @@ class InputPage(ctk.CTkFrame):
         
     def on_show(self):
         """Called when this page is shown"""
+        # Load content lazily when page is first shown
+        self.load_content()
+        
         # Prefill form with any existing data
         user_data = self.controller.state_manager.user_data
         
@@ -419,6 +426,55 @@ class InputPage(ctk.CTkFrame):
         # # Set allergies checkboxes
         # for allergy, var in self.allergy_vars.items():
         #     var.set(allergy in user_data["allergies"])
+
+    def _on_mousewheel(self, event):
+        """Throttled scroll handler to prevent UI distortion"""
+        import time
+        
+        current_time = time.time()
+        
+        # Cancel previous scroll job if it exists
+        if self._scroll_job:
+            self.after_cancel(self._scroll_job)
+        
+        # Only process scroll if enough time has passed (throttling)
+        if current_time - self._last_scroll_time > 0.016:  # ~60fps limit
+            self._last_scroll_time = current_time
+            
+            # Let the default scroll behavior handle it immediately
+            return
+        else:
+            # Defer the scroll to prevent rapid updates
+            self._scroll_job = self.after(16, lambda: self._deferred_scroll(event))
+            return "break"  # Prevent default handling
+            
+    def _deferred_scroll(self, event):
+        """Handle deferred scroll events"""
+        try:
+            # Manually scroll the content
+            if event.delta:
+                delta = -int(event.delta/120)  # Windows
+            else:
+                delta = -1 if event.num == 4 else 1  # Linux
+                
+            # Get current scroll position and update it smoothly
+            try:
+                current_pos = self.scrollable_frame._parent_canvas.canvasy(0)
+                scroll_unit = 3  # Smaller scroll units for smoothness
+                new_pos = current_pos + (delta * scroll_unit)
+                
+                # Apply the scroll
+                bbox = self.scrollable_frame._parent_canvas.bbox("all")
+                if bbox and bbox[3] > 0:
+                    self.scrollable_frame._parent_canvas.yview_moveto(new_pos / bbox[3])
+            except AttributeError:
+                # Fallback to simple yview_scroll if _parent_canvas is not accessible
+                self.scrollable_frame._parent_canvas.yview_scroll(delta * 3, "units")
+                
+        except Exception as e:
+            print(f"Input page scroll error: {e}")
+        finally:
+            self._scroll_job = None
 
 if __name__ == "__main__":
     # For standalone testing

@@ -524,13 +524,37 @@ class CapturePage(ctk.CTkFrame):
         self.side_captured = False
         self.front_image_path = None
         self.side_image_path = None
+        self.front_captured_path = None  # Path in captured_poses folder
+        self.side_captured_path = None   # Path in captured_poses folder
         
-        # Detect cameras
-        self._detect_cameras()
+        # Initialize basic layout immediately for fast load
+        self._init_basic_layout()
         
+        # Flag to track if content has been loaded
+        self._content_loaded = False
+        
+    def _init_basic_layout(self):
+        """Initialize basic layout structure quickly"""
         # Configure main grid
         self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        
+    def load_content(self):
+        """Load the actual content when page is shown"""
+        if self._content_loaded:
+            return
+            
+        # Reconfigure grid for actual content
         self.grid_rowconfigure(2, weight=1)
+        
+        # Load actual content immediately - no loading indicator
+        self._init_content_layout()
+        self._content_loaded = True
+        
+    def _init_content_layout(self):
+        """Initialize the full content layout"""
+        # Detect cameras
+        self._detect_cameras()
         
         # Header section
         self._create_header()
@@ -871,6 +895,10 @@ class CapturePage(ctk.CTkFrame):
                 # Ensure output directory exists
                 os.makedirs(INPUT_FILES_DIR, exist_ok=True)
                 
+                # Also create captured poses directory
+                captured_poses_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "database", "captured_poses")
+                os.makedirs(captured_poses_dir, exist_ok=True)
+                
                 # Save using OpenCV (same format as capture)
                 output_path = os.path.join(INPUT_FILES_DIR, f"input_{pose_type}.png")
                 success = cv2.imwrite(output_path, processed_frame)
@@ -879,14 +907,22 @@ class CapturePage(ctk.CTkFrame):
                     messagebox.showerror("Error", "Failed to save the processed image.")
                     return
                 
+                # Also save to captured poses folder
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                captured_output_path = os.path.join(captured_poses_dir, f"{timestamp}_{pose_type}_uploaded.png")
+                cv2.imwrite(captured_output_path, processed_frame)
+                
                 # Update UI state (same as capture)
                 if pose_type == "front":
                     self.front_captured = True
                     self.front_image_path = output_path
+                    self.front_captured_path = captured_output_path
                     self.front_card.set_captured(image_path=output_path)
                 else:
                     self.side_captured = True  
                     self.side_image_path = output_path
+                    self.side_captured_path = captured_output_path
                     self.side_card.set_captured(image_path=output_path)
                 
                 # Update UI and show success message (same as capture)
@@ -993,19 +1029,34 @@ class CapturePage(ctk.CTkFrame):
     def _capture_image(self, frame, pose_type):
         """Capture and save image"""
         try:
+            # Ensure both directories exist
             os.makedirs(INPUT_FILES_DIR, exist_ok=True)
-            output_path = os.path.join(INPUT_FILES_DIR, f"input_{pose_type}.png")
-            cv2.imwrite(output_path, frame)
+            
+            # Also save to captured poses folder with timestamp
+            captured_poses_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "database", "captured_poses")
+            os.makedirs(captured_poses_dir, exist_ok=True)
+            
+            # Save to input files for processing
+            input_output_path = os.path.join(INPUT_FILES_DIR, f"input_{pose_type}.png")
+            cv2.imwrite(input_output_path, frame)
+            
+            # Save to captured poses with timestamp for history
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            captured_output_path = os.path.join(captured_poses_dir, f"{timestamp}_{pose_type}.png")
+            cv2.imwrite(captured_output_path, frame)
             
             # Update UI
             if pose_type == "front":
                 self.front_captured = True
-                self.front_image_path = output_path
-                self.after_idle(lambda: self.front_card.set_captured(image_path=output_path))
+                self.front_image_path = input_output_path
+                self.front_captured_path = captured_output_path  # Store captured path
+                self.after_idle(lambda: self.front_card.set_captured(image_path=input_output_path))
             else:
                 self.side_captured = True
-                self.side_image_path = output_path
-                self.after_idle(lambda: self.side_card.set_captured(image_path=output_path))
+                self.side_image_path = input_output_path
+                self.side_captured_path = captured_output_path  # Store captured path
+                self.after_idle(lambda: self.side_card.set_captured(image_path=input_output_path))
             
             self.after_idle(self._update_ui_state)
             self.after_idle(self._update_button_states)
@@ -1067,6 +1118,9 @@ class CapturePage(ctk.CTkFrame):
     
     def on_show(self):
         """Called when page is shown"""
+        # Load content lazily when page is first shown
+        self.load_content()
+        
         # Reset state if needed
         pass
     

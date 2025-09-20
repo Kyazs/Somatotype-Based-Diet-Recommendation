@@ -6,6 +6,7 @@ import customtkinter as ctk
 import pandas as pd
 import os
 import sys
+import json
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import numpy as np
@@ -847,6 +848,16 @@ class DietPage(ctk.CTkFrame):
         super().__init__(parent, fg_color=ThemeManager.BG_COLOR)
         self.controller = controller
         
+        # Performance optimization flags
+        self._content_initialized = False
+        self._data_loaded = False
+        self.data_loaded = False  # Keep this for backward compatibility
+        
+        # Initialize basic structure only
+        self._init_basic_layout()
+        
+    def _init_basic_layout(self):
+        """Initialize only the basic layout structure for fast initial load"""
         # Configure grid layout
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=0)  # Header
@@ -875,16 +886,53 @@ class DietPage(ctk.CTkFrame):
         )
         self.subtitle_label.grid(row=1, column=0, pady=(5, 0))
         
+        # Loading indicator
+        self.loading_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.loading_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=20)
+        self.loading_frame.grid_columnconfigure(0, weight=1)
+        self.loading_frame.grid_rowconfigure(0, weight=1)
+        
+        self.loading_label = ctk.CTkLabel(
+            self.loading_frame,
+            text="⏳ Preparing your personalized diet plan...",
+            font=ThemeManager.get_subtitle_font(),
+            text_color=ThemeManager.GRAY_DARK
+        )
+        self.loading_label.grid(row=0, column=0)
+        
+    def _init_content_layout(self):
+        """Initialize the full content layout (called lazily when needed)"""
+        if self._content_initialized:
+            return
+            
+        # Remove loading indicator
+        self.loading_frame.destroy()
+        
         # Main content area with scrollable container
         self.content_scroll = ctk.CTkScrollableFrame(
             self, 
             fg_color="transparent",
             scrollbar_button_color=ThemeManager.PRIMARY_COLOR,
-            scrollbar_button_hover_color=ThemeManager.PRIMARY_COLOR_HOVER
+            scrollbar_button_hover_color=ThemeManager.PRIMARY_COLOR_HOVER,
+            corner_radius=0,  # Reduces rendering overhead
+            border_width=0   # Reduces border redraw issues
         )
         self.content_scroll.grid(row=1, column=0, sticky="nsew", padx=20, pady=20)
         self.content_scroll.grid_columnconfigure(0, weight=1)  # Left column
         self.content_scroll.grid_columnconfigure(1, weight=1)  # Right column
+        
+        # Add scroll throttling to prevent UI distortion
+        self.content_scroll.bind("<MouseWheel>", self._on_mousewheel)
+        self.content_scroll.bind("<Button-4>", self._on_mousewheel)  # Linux
+        self.content_scroll.bind("<Button-5>", self._on_mousewheel)  # Linux
+        
+        # Scroll throttling variables
+        self._scroll_job = None
+        self._last_scroll_time = 0
+        
+        # Scroll throttling variables
+        self._scroll_job = None
+        self._last_scroll_time = 0
         
         # Top row: User summary and Calorie information
         self.user_summary_frame = ctk.CTkFrame(self.content_scroll, fg_color="transparent")
@@ -908,52 +956,68 @@ class DietPage(ctk.CTkFrame):
         )
         self.body_info.grid(row=1, column=0, sticky="w", columnspan=2)
         
-        # Second row: Calories & Macronutrients
-        self.calories_card = CalorieInfoCard(self.content_scroll)
-        self.calories_card.grid(row=1, column=0, sticky="nsew", padx=(0, 10), pady=(0, 15))
-        
-        # Empty macronutrient chart container
-        self.macro_frame = ctk.CTkFrame(self.content_scroll, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
-        self.macro_frame.grid(row=1, column=1, sticky="nsew", padx=(10, 0), pady=(0, 15))
-        self.macro_frame.grid_columnconfigure(0, weight=1)
-        self.macro_frame.grid_rowconfigure(0, weight=1)
-        
-        # Macronutrient chart (initialized later)
-        self.macro_chart = None
-        
-        # Third row: Somatotype visualization
-        self.soma_frame = ctk.CTkFrame(self.content_scroll, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
-        self.soma_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
-        self.soma_frame.grid_columnconfigure(0, weight=1)
-        
-        # Somatotype visualization (initialized later)
-        self.soma_visual = None
-        
-        # Fourth row: Meal-based food recommendations
-        self.meal_recommendations = MealBasedFoodRecommendations(self.content_scroll)
-        self.meal_recommendations.grid(row=3, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        # Create placeholder frames for lazy-loaded content
+        self._init_placeholder_frames()
         
         # Footer with navigation buttons
         self.footer_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.footer_frame.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="ew")
         self.footer_frame.grid_columnconfigure(0, weight=1)
-        self.footer_frame.grid_columnconfigure(1, weight=1)
         
-        # Button to start over
-        self.start_over_button = ThemeManager.create_secondary_button(
-            self.footer_frame,
-            "Start Over",
-            lambda: self.controller.show_frame("LandingPage")
-        )
-        self.start_over_button.grid(row=0, column=0, padx=(0, 10), sticky="w")
+        # Navigation buttons
+        self.nav_frame = ctk.CTkFrame(self.footer_frame, fg_color="transparent")
+        self.nav_frame.grid(row=0, column=0, sticky="ew")
+        self.nav_frame.grid_columnconfigure((0, 1), weight=1)
         
-        # Button to save results
-        self.save_button = ThemeManager.create_primary_button(
-            self.footer_frame,
-            "Save Results",
-            self.save_results
+        # Back button
+        self.back_button = ThemeManager.create_secondary_button(
+            self.nav_frame,
+            "← Back to Results",
+            lambda: self.controller.show_frame("ProcessingPage")
         )
-        self.save_button.grid(row=0, column=1, padx=(10, 0), sticky="e")
+        self.back_button.grid(row=0, column=0, padx=(0, 10), sticky="w")
+        
+        # History button
+        self.history_button = ThemeManager.create_primary_button(
+            self.nav_frame,
+            "View History →",
+            lambda: self.controller.show_frame("HistoryPage")
+        )
+        self.history_button.grid(row=0, column=1, padx=(10, 0), sticky="e")
+        
+        self._content_initialized = True
+        
+    def _init_placeholder_frames(self):
+        """Create placeholder frames for expensive content that will be lazy-loaded"""
+        # Calories card placeholder
+        self.calories_frame = ctk.CTkFrame(self.content_scroll, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
+        self.calories_frame.grid(row=1, column=0, sticky="nsew", padx=(0, 10), pady=(0, 15))
+        self.calories_frame.grid_columnconfigure(0, weight=1)
+        self.calories_frame.grid_rowconfigure(0, weight=1)
+        
+        # Macronutrients placeholder
+        self.macro_frame = ctk.CTkFrame(self.content_scroll, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
+        self.macro_frame.grid(row=1, column=1, sticky="nsew", padx=(10, 0), pady=(0, 15))
+        self.macro_frame.grid_columnconfigure(0, weight=1)
+        self.macro_frame.grid_rowconfigure(0, weight=1)
+        
+        # Somatotype placeholder
+        self.soma_frame = ctk.CTkFrame(self.content_scroll, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
+        self.soma_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        self.soma_frame.grid_columnconfigure(0, weight=1)
+        self.soma_frame.grid_rowconfigure(0, weight=1)
+        
+        # Meal recommendations placeholder
+        self.meal_frame = ctk.CTkFrame(self.content_scroll, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
+        self.meal_frame.grid(row=3, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        self.meal_frame.grid_columnconfigure(0, weight=1)
+        self.meal_frame.grid_rowconfigure(0, weight=1)
+        
+        # Initialize widget references as None for lazy loading
+        self.calories_card = None
+        self.macro_chart = None
+        self.soma_visual = None
+        self.meal_recommendations = None
         
         # Flag to track if data is loaded
         self.data_loaded = False
@@ -961,35 +1025,80 @@ class DietPage(ctk.CTkFrame):
         # Reference to state manager
         self.state_manager = controller.state_manager if hasattr(controller, 'state_manager') else None
         
+        # Initialize database manager for loading data
+        from utils.database import DatabaseManager
+        self.db_manager = DatabaseManager()
+        
     def on_show(self):
-        """Called when the page is shown"""
-        # Try to load data if not already loaded
-        if not self.data_loaded:
+        """Called when the page is shown - implements lazy loading for performance"""
+        # Load content lazily when page is first shown
+        self.load_content()
+        
+        # Load data if not already loaded
+        if not self._data_loaded:
+            # Show loading state
+            self._show_loading_state()
+            
+            # Schedule data loading to prevent blocking the UI
+            self.after(50, self._load_data_async)
+    
+    def _show_loading_state(self):
+        """Show loading indicators in placeholder frames"""
+        loading_text = "⏳ Loading..."
+        loading_font = ThemeManager.get_label_font()
+        loading_color = ThemeManager.GRAY_DARK
+        
+        # Show loading in each placeholder frame
+        frames_to_load = [
+            (self.calories_frame, "Calorie Information"),
+            (self.macro_frame, "Macronutrient Distribution"), 
+            (self.soma_frame, "Somatotype Analysis"),
+            (self.meal_frame, "Meal Recommendations")
+        ]
+        
+        for frame, content_type in frames_to_load:
+            loading_label = ctk.CTkLabel(
+                frame,
+                text=f"⏳ Loading {content_type}...",
+                font=loading_font,
+                text_color=loading_color
+            )
+            loading_label.grid(row=0, column=0, padx=20, pady=20)
+    
+    def _load_data_async(self):
+        """Load data asynchronously to prevent UI blocking"""
+        try:
             self.load_data()
+        except Exception as e:
+            print(f"Error loading diet page data: {e}")
+            self.display_error(f"Failed to load diet data: {str(e)}")
     
     def load_data(self):
-        """Load diet recommendation and somatotype data"""
+        """Load diet recommendation and somatotype data from database (most recent session)"""
         try:
-            # Get file paths
-            recommendation_path = os.path.join(OUTPUT_FILES_DIR, "output_recommendation.csv")
-            classification_path = os.path.join(OUTPUT_FILES_DIR, "output_classification.csv")
+            # Get the most recent session for the current user (assuming user_id = 1 for now)
+            # In a full implementation, this would come from the current user context
+            user_id = 1
             
-            # Check if files exist
-            if not (os.path.exists(recommendation_path) and os.path.exists(classification_path)):
-                self.display_error("Output files not found. Please complete the analysis process first.")
+            # Get user history and take the most recent session
+            history = self.db_manager.get_user_history(user_id)
+            
+            if not history:
+                self.display_error("No analysis data found. Please complete the analysis process first.")
                 return
             
-            # Load recommendation data
-            diet_data = pd.read_csv(recommendation_path)
+            # Get the most recent record
+            most_recent_record = history[0]
+            session_id = most_recent_record.get('session_id')
             
-            # Load classification data
-            classification_data = pd.read_csv(classification_path)
+            if not session_id:
+                self.display_error("Invalid session data. Please try running the analysis again.")
+                return
             
-            # Process and display the data
-            self.process_recommendation_data(diet_data)
-            self.process_classification_data(classification_data)
+            # Load data using the same approach as history_detail_page.py
+            self._load_database_data(most_recent_record)
             
-            # If we have a state manager, get the user data
+            # Update user summary if we have state manager data
             if self.state_manager and hasattr(self.state_manager, 'user_data'):
                 user_data = self.state_manager.user_data
                 
@@ -1001,243 +1110,243 @@ class DietPage(ctk.CTkFrame):
                 
                 self.user_info.configure(text=f"Diet Plan for {name}")
                 self.body_info.configure(text=f"{gender.capitalize()}, {age} years old | Goal: {goal}")
+            else:
+                # Use data from database record
+                name = most_recent_record.get('name', 'User')
+                gender = most_recent_record.get('gender', '')
+                age = most_recent_record.get('age', '')
+                goal = most_recent_record.get('goal', '')
                 
-                # Update calories card
-                self.calories_card.update_values(2000, goal)  # Sample value, should come from analysis
+                self.user_info.configure(text=f"Diet Plan for {name}")
+                self.body_info.configure(text=f"{gender.capitalize()}, {age} years old | Goal: {goal}")
             
             self.data_loaded = True
             
         except Exception as e:
+            print(f"Error loading data from database: {str(e)}")
+            import traceback
+            traceback.print_exc()
             self.display_error(f"Error loading data: {str(e)}")
     
-    def process_recommendation_data(self, data):
-        """Process and display diet recommendation data using the new diet engine"""
+    def _load_database_data(self, record_data):
+        """Load data from database using lazy widget creation for performance"""
         try:
-            # Import diet engine
-            from src.recommendation.diet_engine import DietRecommendationEngine
+            session_id = record_data.get('session_id')
             
-            # Initialize the diet engine
-            engine = DietRecommendationEngine()
+            # Load and create calories card (lazy loading)
+            self._load_calories_widget(record_data)
             
-            # Generate meal-based recommendations
-            meal_recommendations = engine.generate_meal_based_recommendations()
+            # Load and create macronutrient chart (lazy loading)
+            self._load_macronutrient_widget(session_id)
             
-            # Store meal recommendations data for testing/debugging
-            self.meal_recommendations_data = meal_recommendations
+            # Load and create somatotype visualization (lazy loading)
+            self._load_somatotype_widget(session_id)
             
-            # Also get comprehensive recommendations for macronutrient data
-            comprehensive_recs = engine.generate_comprehensive_recommendations()
-            macros = comprehensive_recs.get('macros', {})
+            # Load and create meal recommendations (lazy loading)
+            self._load_meal_recommendations_widget(session_id)
             
-            # Extract macronutrient percentages
-            total_calories = macros.get('calories', 2000)
-            protein_g = macros.get('protein_g', 150)
-            carbs_g = macros.get('carbs_g', 200)
-            fat_g = macros.get('fat_g', 70)
-            
-            # Calculate percentages
-            protein_cal = protein_g * 4
-            carbs_cal = carbs_g * 4
-            fat_cal = fat_g * 9
-            
-            protein_pct = int((protein_cal / total_calories) * 100) if total_calories > 0 else 30
-            carbs_pct = int((carbs_cal / total_calories) * 100) if total_calories > 0 else 45
-            fat_pct = int((fat_cal / total_calories) * 100) if total_calories > 0 else 25
-            
-            # Ensure percentages add up to 100
-            total_pct = protein_pct + carbs_pct + fat_pct
-            if total_pct != 100:
-                diff = 100 - total_pct
-                carbs_pct += diff  # Adjust carbs if there's a difference
-            
-            # Create and place the macronutrient chart 
-            if self.macro_chart:
-                self.macro_chart.destroy()
-            
-            self.macro_chart = MacronutrientChart(
-                self.macro_frame, 
-                protein=protein_pct, 
-                carbs=carbs_pct, 
-                fat=fat_pct
-            )
-            self.macro_chart.pack(fill="both", expand=True, padx=15, pady=15)
-            
-            # Update calorie info
-            goal = macros.get('goal', 'maintain_weight').replace('_', ' ').title()
-            self.calories_card.update_values(int(total_calories), goal)
-            
-            # Update meal-based food recommendations
-            self.meal_recommendations.update_recommendations(meal_recommendations)
+            # Mark data as loaded
+            self._data_loaded = True
+            self.data_loaded = True  # Keep for backward compatibility
             
         except Exception as e:
-            print(f"Error processing recommendation data: {str(e)}")
-            # Fallback to basic display
-            self._show_fallback_recommendations()
-    
-    def _show_fallback_recommendations(self):
-        """Show fallback recommendations when data loading fails"""
+            print(f"Error loading database data: {e}")
+            import traceback
+            traceback.print_exc()
+            
+    def _load_calories_widget(self, record_data):
+        """Lazy load the calories widget"""
         try:
-            # Set default macronutrient chart
-            if self.macro_chart:
-                self.macro_chart.destroy()
-            
-            self.macro_chart = MacronutrientChart(
-                self.macro_frame, 
-                protein=30, 
-                carbs=45, 
-                fat=25
-            )
-            self.macro_chart.pack(fill="both", expand=True, padx=15, pady=15)
-            
-            # Set default calorie info
-            self.calories_card.update_values(2000, "Maintain Weight")
-            
-            # Set fallback meal recommendations
-            fallback_meals = {
-                'breakfast': [
-                    {
-                        'Food_Item': 'Greek Yogurt',
-                        'Enhanced_Category': 'dairy_proteins',
-                        'Calories_kcal': 150,
-                        'Protein_g': 15,
-                        'Carbohydrates_g': 20,
-                        'Fat_g': 3,
-                        'Fiber_g': 3,
-                        'Sugars_g': 15,
-                        'Sodium_mg': 50,
-                        'Portion_Recommendation': '150-200g',
-                        'Overall_Quality': 9,
-                        'Ectomorph_Score': 8,
-                        'Mesomorph_Score': 9,
-                        'Endomorph_Score': 7,
-                        'Cholesterol_mg': 10
-                    }
-                ],
-                'lunch': [
-                    {
-                        'Food_Item': 'Chicken Breast',
-                        'Enhanced_Category': 'lean_proteins',
-                        'Calories_kcal': 165,
-                        'Protein_g': 31,
-                        'Carbohydrates_g': 0,
-                        'Fat_g': 3.6,
-                        'Fiber_g': 0,
-                        'Sugars_g': 0,
-                        'Sodium_mg': 74,
-                        'Portion_Recommendation': '100-150g',
-                        'Overall_Quality': 9,
-                        'Ectomorph_Score': 7,
-                        'Mesomorph_Score': 9,
-                        'Endomorph_Score': 8,
-                        'Cholesterol_mg': 85
-                    }
-                ],
-                'dinner': [
-                    {
-                        'Food_Item': 'Salmon',
-                        'Enhanced_Category': 'healthy_fats',
-                        'Calories_kcal': 208,
-                        'Protein_g': 28.5,
-                        'Carbohydrates_g': 0,
-                        'Fat_g': 9.1,
-                        'Fiber_g': 0,
-                        'Sugars_g': 0,
-                        'Sodium_mg': 69,
-                        'Portion_Recommendation': '100-150g',
-                        'Overall_Quality': 10,
-                        'Ectomorph_Score': 8,
-                        'Mesomorph_Score': 9,
-                        'Endomorph_Score': 8,
-                        'Cholesterol_mg': 70
-                    }
-                ],
-                'snack': [
-                    {
-                        'Food_Item': 'Mixed Nuts',
-                        'Enhanced_Category': 'healthy_fats',
-                        'Calories_kcal': 607,
-                        'Protein_g': 20,
-                        'Carbohydrates_g': 21,
-                        'Fat_g': 54,
-                        'Fiber_g': 8,
-                        'Sugars_g': 4,
-                        'Sodium_mg': 16,
-                        'Portion_Recommendation': '30-40g',
-                        'Overall_Quality': 8,
-                        'Ectomorph_Score': 9,
-                        'Mesomorph_Score': 8,
-                        'Endomorph_Score': 6,
-                        'Cholesterol_mg': 0
-                    }
-                ]
-            }
-            
-            # Store fallback meal recommendations data for testing/debugging
-            self.meal_recommendations_data = fallback_meals
-            
-            self.meal_recommendations.update_recommendations(fallback_meals)
-            
-        except Exception as e:
-            print(f"Error showing fallback recommendations: {str(e)}")
-    
-    def process_classification_data(self, data):
-        """Process and display somatotype classification data"""
-        try:
-            # Default values in case parsing fails
-            endo_val = 33
-            meso_val = 33
-            ecto_val = 34
-            
-            if not data.empty:
-                try:
-                    # Try to find a row containing somatotype information
-                    for i, row in data.iterrows():
-                        for col in row.index:
-                            cell_value = str(row[col]).lower()
-                            if 'endomorph' in cell_value or 'ectomorph' in cell_value or 'mesomorph' in cell_value:
-                                # Extract percentages using regex
-                                import re
-                                endo_match = re.search(r'endomorph:?\s*(\d+)%?', cell_value, re.IGNORECASE)
-                                meso_match = re.search(r'mesomorph:?\s*(\d+)%?', cell_value, re.IGNORECASE)
-                                ecto_match = re.search(r'ectomorph:?\s*(\d+)%?', cell_value, re.IGNORECASE)
-                                
-                                if endo_match:
-                                    endo_val = int(endo_match.group(1))
-                                if meso_match:
-                                    meso_val = int(meso_match.group(1))
-                                if ecto_match:
-                                    ecto_val = int(ecto_match.group(1))
-                                
-                                break
+            # Clear loading indicator
+            for child in self.calories_frame.winfo_children():
+                child.destroy()
                 
-                except Exception as e:
-                    print(f"Error parsing somatotype percentages: {str(e)}")
-                    
-                    # Try alternative approach - direct column access if specific columns exist
-                    try:
-                        if 'Endomorph' in data.columns and 'Mesomorph' in data.columns and 'Ectomorph' in data.columns:
-                            # Get the first row values
-                            endo_val = int(float(data['Endomorph'].iloc[0]))
-                            meso_val = int(float(data['Mesomorph'].iloc[0]))
-                            ecto_val = int(float(data['Ectomorph'].iloc[0]))
-                    except Exception as e2:
-                        print(f"Error accessing somatotype columns: {str(e2)}")
+            # Create calories card
+            calories = record_data.get('calories', 2000)
+            goal = record_data.get('goal', 'Maintain Weight')
             
-            # Create and place the somatotype visualization
-            self.soma_visual = SomatotypeVisual(
-                self.soma_frame,
-                ectomorph=ecto_val,
-                mesomorph=meso_val,
-                endomorph=endo_val
-            )
-            self.soma_visual.pack(fill="both", expand=True, padx=15, pady=15)
+            self.calories_card = CalorieInfoCard(self.calories_frame, calories, goal)
+            self.calories_card.pack(fill="both", expand=True, padx=5, pady=5)
             
         except Exception as e:
-            print(f"Error processing classification data: {str(e)}")
+            print(f"Error loading calories widget: {e}")
             
-            # Create default somatotype visualization
-            self.soma_visual = SomatotypeVisual(self.soma_frame)
-            self.soma_visual.pack(fill="both", expand=True, padx=15, pady=15)
+    def _load_macronutrient_widget(self, session_id):
+        """Lazy load the macronutrient chart widget"""
+        try:
+            # Clear loading indicator
+            for child in self.macro_frame.winfo_children():
+                child.destroy()
+                
+            # Load macronutrient data from database
+            diet_data = self.db_manager.get_diet_recommendations(session_id)
+            
+            if diet_data:
+                # Parse nutrition data
+                nutrition_data = diet_data.get('nutrition_data', {})
+                
+                # Extract macronutrient percentages
+                protein_pct = int(nutrition_data.get('protein_percentage', 30))
+                carbs_pct = int(nutrition_data.get('carbs_percentage', 45)) 
+                fat_pct = int(nutrition_data.get('fat_percentage', 25))
+                
+                # Create macronutrient chart
+                self.macro_chart = MacronutrientChart(
+                    self.macro_frame, 
+                    protein=protein_pct, 
+                    carbs=carbs_pct, 
+                    fat=fat_pct
+                )
+                self.macro_chart.pack(fill="both", expand=True, padx=5, pady=5)
+                
+            else:
+                print("No diet recommendations found in database")
+                self._show_fallback_macronutrients()
+                
+        except Exception as e:
+            print(f"Error loading macronutrient widget: {e}")
+            
+    def _load_somatotype_widget(self, session_id):
+        """Lazy load the somatotype visualization widget"""
+        try:
+            # Clear loading indicator
+            for child in self.soma_frame.winfo_children():
+                child.destroy()
+                
+            # Load somatotype data
+            soma_data = self.db_manager.get_somatotype_classification(session_id)
+            
+            if soma_data:
+                ectomorph = float(soma_data.get('ectomorph_score', 33.3))
+                mesomorph = float(soma_data.get('mesomorph_score', 33.3))
+                endomorph = float(soma_data.get('endomorph_score', 33.3))
+                
+                # Create somatotype visualization
+                self.soma_visual = SomatotypeVisual(
+                    self.soma_frame,
+                    ectomorph=ectomorph,
+                    mesomorph=mesomorph,
+                    endomorph=endomorph
+                )
+                self.soma_visual.pack(fill="both", expand=True, padx=5, pady=5)
+                
+            else:
+                print("No somatotype data found in database")
+                self._show_fallback_somatotype()
+                
+        except Exception as e:
+            print(f"Error loading somatotype widget: {e}")
+            
+    def _load_meal_recommendations_widget(self, session_id):
+        """Lazy load the meal recommendations widget"""
+        try:
+            # Clear loading indicator
+            for child in self.meal_frame.winfo_children():
+                child.destroy()
+                
+            # Load meal recommendations from database
+            diet_data = self.db_manager.get_diet_recommendations(session_id)
+            
+            if diet_data:
+                meal_data = diet_data.get('meal_recommendations', '{}')
+                
+                # If meal_data is a JSON string, parse it
+                if isinstance(meal_data, str):
+                    try:
+                        import json
+                        meal_data = json.loads(meal_data)
+                    except json.JSONDecodeError:
+                        meal_data = {}
+                
+                # Store meal recommendations data for testing/debugging
+                self.meal_recommendations_data = meal_data
+                
+                # Create meal recommendations widget
+                self.meal_recommendations = MealBasedFoodRecommendations(self.meal_frame)
+                self.meal_recommendations.pack(fill="both", expand=True, padx=5, pady=5)
+                
+                # Update with data
+                self.meal_recommendations.update_recommendations(meal_data)
+                
+            else:
+                print("No meal recommendations found in database")
+                self._show_fallback_meal_recommendations()
+                
+        except Exception as e:
+            print(f"Error loading meal recommendations widget: {e}")
+            
+    def _show_fallback_macronutrients(self):
+        """Show fallback macronutrient chart when data is not available"""
+        self.macro_chart = MacronutrientChart(self.macro_frame, protein=30, carbs=45, fat=25)
+        self.macro_chart.pack(fill="both", expand=True, padx=5, pady=5)
+        
+    def _show_fallback_somatotype(self):
+        """Show fallback somatotype visualization when data is not available"""
+        self.soma_visual = SomatotypeVisual(self.soma_frame)
+        self.soma_visual.pack(fill="both", expand=True, padx=5, pady=5)
+        
+    def _show_fallback_meal_recommendations(self):
+        """Show fallback meal recommendations when data is not available"""
+        self.meal_recommendations = MealBasedFoodRecommendations(self.meal_frame)
+        self.meal_recommendations.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Create basic fallback recommendations
+        fallback_data = {
+            "breakfast": ["Oatmeal with berries", "Greek yogurt", "Whole grain toast"],
+            "lunch": ["Grilled chicken salad", "Quinoa bowl", "Vegetable soup"],
+            "dinner": ["Salmon with vegetables", "Brown rice", "Mixed greens"],
+            "snacks": ["Nuts and fruits", "Protein smoothie", "Whole grain crackers"]
+        }
+        self.meal_recommendations.update_recommendations(fallback_data)
+    
+    def _on_mousewheel(self, event):
+        """Throttled scroll handler to prevent UI distortion"""
+        import time
+        
+        current_time = time.time()
+        
+        # Cancel previous scroll job if it exists
+        if self._scroll_job:
+            self.after_cancel(self._scroll_job)
+        
+        # Only process scroll if enough time has passed (throttling)
+        if current_time - self._last_scroll_time > 0.016:  # ~60fps limit
+            self._last_scroll_time = current_time
+            
+            # Let the default scroll behavior handle it immediately
+            return
+        else:
+            # Defer the scroll to prevent rapid updates
+            self._scroll_job = self.after(16, lambda: self._deferred_scroll(event))
+            return "break"  # Prevent default handling
+            
+    def _deferred_scroll(self, event):
+        """Handle deferred scroll events"""
+        try:
+            # Manually scroll the content
+            if event.delta:
+                delta = -int(event.delta/120)  # Windows
+            else:
+                delta = -1 if event.num == 4 else 1  # Linux
+                
+            # Get current scroll position and update it smoothly
+            try:
+                current_pos = self.content_scroll._parent_canvas.canvasy(0)
+                scroll_unit = 3  # Smaller scroll units for smoothness
+                new_pos = current_pos + (delta * scroll_unit)
+                
+                # Apply the scroll
+                bbox = self.content_scroll._parent_canvas.bbox("all")
+                if bbox and bbox[3] > 0:
+                    self.content_scroll._parent_canvas.yview_moveto(new_pos / bbox[3])
+            except AttributeError:
+                # Fallback to simple yview_scroll if _parent_canvas is not accessible
+                self.content_scroll._parent_canvas.yview_scroll(delta * 3, "units")
+                
+        except Exception as e:
+            print(f"Scroll error: {e}")
+        finally:
+            self._scroll_job = None
     
     def display_error(self, message):
         """Display an error message"""

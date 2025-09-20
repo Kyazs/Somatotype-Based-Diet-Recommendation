@@ -15,8 +15,9 @@ from PIL import Image
 PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.append(PROJECT_DIR)
 
-from src.utils.utils import CNN_DIR, VENV_DIR, CLASSIFIER_DIR, RECOMMENDER_DIR
+from src.utils.utils import CNN_DIR, VENV_DIR, CLASSIFIER_DIR, RECOMMENDER_DIR, INPUT_FILES_DIR, OUTPUT_FILES_DIR
 from src.utils.theme_manager import ThemeManager
+from src.utils.database import DatabaseManager
 
 class ProcessingStep(ctk.CTkFrame):
     """Enhanced processing step with visual storytelling and smooth animations"""
@@ -529,6 +530,34 @@ class ProcessingPage(ctk.CTkFrame):
         self.controller = controller
         self.stop_requested = False
         
+        # Initialize database manager
+        self.db_manager = DatabaseManager()
+        self.current_session_id = None
+        self.current_user_id = None
+        
+        # Initialize basic layout immediately for fast load
+        self._init_basic_layout()
+        
+        # Flag to track if content has been loaded
+        self._content_loaded = False
+        
+    def _init_basic_layout(self):
+        """Initialize basic layout structure quickly"""
+        # Configure grid layout
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        
+    def load_content(self):
+        """Load the actual content when page is shown"""
+        if self._content_loaded:
+            return
+            
+        # Load actual content immediately - no loading indicator
+        self._init_content_layout()
+        self._content_loaded = True
+        
+    def _init_content_layout(self):
+        """Initialize the full content layout"""
         # Configure main grid for better responsive layout
         self.grid_columnconfigure(0, weight=2)  # Left side (steps)
         self.grid_columnconfigure(1, weight=1)  # Right side (visual card)
@@ -647,6 +676,9 @@ class ProcessingPage(ctk.CTkFrame):
     def run_process(self):
         """Main processing logic with enhanced progress updates and timing"""
         try:
+            # Initialize database session at start
+            self._initialize_database_session()
+            
             # Step 1: Validate user input
             self.update_step("user_input", self.processing_steps["user_input"].STATUS_PROCESSING)
             
@@ -667,8 +699,11 @@ class ProcessingPage(ctk.CTkFrame):
                 return
             if success:
                 self.update_step("image_processing", self.processing_steps["image_processing"].STATUS_COMPLETE, "Features detected ✓", progress=1.0)
+                # Save body measurements to database after CNN processing
+                self._save_body_measurements()
             else:
                 self.update_step("image_processing", self.processing_steps["image_processing"].STATUS_ERROR, "Image processing failed")
+                self._update_session_status('failed')
                 return
                 
             time.sleep(0.5)
@@ -693,8 +728,11 @@ class ProcessingPage(ctk.CTkFrame):
                 return
             if success:
                 self.update_step("classification", self.processing_steps["classification"].STATUS_COMPLETE, "Body type determined ✓", progress=1.0)
+                # Save somatotype classification to database
+                self._save_somatotype_classification()
             else:
                 self.update_step("classification", self.processing_steps["classification"].STATUS_ERROR, "Classification failed")
+                self._update_session_status('failed')
                 return
                 
             time.sleep(0.5)
@@ -706,14 +744,20 @@ class ProcessingPage(ctk.CTkFrame):
                 return
             if success:
                 self.update_step("diet_plan", self.processing_steps["diet_plan"].STATUS_COMPLETE, "Nutrition plan ready ✓", progress=1.0)
+                # Save diet recommendations to database
+                self._save_diet_recommendations()
+                # Mark session as completed
+                self._update_session_status('completed')
                 # Brief success moment before navigation
                 time.sleep(1)
                 self.controller.after(500, lambda: self.controller.show_frame("DietPage"))
             else:
                 self.update_step("diet_plan", self.processing_steps["diet_plan"].STATUS_ERROR, "Diet generation failed")
+                self._update_session_status('failed')
                 
         except Exception as e:
             print(f"Processing error: {e}")
+            self._update_session_status('failed')
             # Mark current step as error
             for step_name, step in self.processing_steps.items():
                 if step.current_status == step.STATUS_PROCESSING:
@@ -779,39 +823,28 @@ class ProcessingPage(ctk.CTkFrame):
             return False
 
     def run_recommender(self):
-        """Run recommender for diet plan generation"""
+        """Run recommender for diet plan generation using DietRecommendationEngine"""
         try:
-            recommender_script = os.path.join(RECOMMENDER_DIR, "recommender.py")
+            print("🍽️ Generating diet recommendations...")
             
-            # Use the virtual environment Python path
-            python_path = "C:/Users/LENOVO/Desktop/Kekious_Maximus/diet-recommendation-somatotype/.venv/cnn_env/Scripts/python.exe"
+            # Import and initialize the diet engine
+            from src.recommendation.diet_engine import DietRecommendationEngine
             
-            # Try the integration script first, then fall back to recommender.py
-            integration_script = os.path.join(RECOMMENDER_DIR, "integrate_recommendations.py")
+            # Create the diet engine
+            engine = DietRecommendationEngine()
             
-            if os.path.exists(integration_script):
-                command = f'"{python_path}" "{integration_script}"'
-            else:
-                command = f'"{python_path}" "{recommender_script}"'
+            # Generate and save recommendations to CSV file (expected by _save_diet_recommendations)
+            csv_path = engine.save_recommendations_to_csv()
+            print(f"✅ Saved CSV recommendations to: {csv_path}")
             
-            print(f"Running command: {command}")
+            # Also save meal recommendations to JSON for future use
+            json_path = engine.save_meal_recommendations_to_json()
+            print(f"✅ Saved JSON meal recommendations to: {json_path}")
             
-            process = subprocess.Popen(
-                command, cwd=RECOMMENDER_DIR, stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE, text=True, shell=True
-            )
+            return True
             
-            stdout, stderr = process.communicate()
-            
-            # Print output for debugging
-            if stdout:
-                print(f"Recommender stdout: {stdout}")
-            if stderr:
-                print(f"Recommender stderr: {stderr}")
-            
-            return process.returncode == 0
         except Exception as e:
-            print(f"Recommender error: {e}")
+            print(f"❌ Error generating diet recommendations: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -819,23 +852,271 @@ class ProcessingPage(ctk.CTkFrame):
     def cancel_processing(self):
         """Cancel processing and return to previous page with gentle feedback"""
         self.stop_requested = True
+        # Update session status if it exists
+        if self.current_session_id:
+            self._update_session_status('cancelled')
         # Provide subtle feedback that cancellation is processing
         self.cancel_button.configure(text="Stopping...", text_color=ThemeManager.WARNING_COLOR)
         self.controller.after(300, lambda: self.controller.show_frame("CapturePage"))
 
+    def _initialize_database_session(self):
+        """Initialize database session with user data and image paths"""
+        try:
+            # Get user data from state manager
+            state_manager = getattr(self.controller, 'state_manager', None)
+            if not state_manager or not hasattr(state_manager, 'user_data'):
+                print("⚠️  No state manager or user data found")
+                return
+                
+            user_data = state_manager.user_data
+            
+            # Insert user into database
+            self.current_user_id = self.db_manager.insert_user(user_data)
+            
+            # Get captured image paths (from captured_poses folder)
+            captured_poses_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "database", "captured_poses")
+            
+            # Try to get the most recent captured images
+            front_captured_path = None
+            side_captured_path = None
+            
+            if os.path.exists(captured_poses_dir):
+                # Get list of front and side images
+                import glob
+                front_images = sorted(glob.glob(os.path.join(captured_poses_dir, "*_front*.png")), reverse=True)
+                side_images = sorted(glob.glob(os.path.join(captured_poses_dir, "*_side*.png")), reverse=True)
+                
+                # Get the most recent ones
+                if front_images:
+                    front_captured_path = front_images[0]
+                if side_images:
+                    side_captured_path = side_images[0]
+            
+            # Also check input files as fallback
+            front_input_path = os.path.join(INPUT_FILES_DIR, "input_front.png") if os.path.exists(os.path.join(INPUT_FILES_DIR, "input_front.png")) else None
+            side_input_path = os.path.join(INPUT_FILES_DIR, "input_side.png") if os.path.exists(os.path.join(INPUT_FILES_DIR, "input_side.png")) else None
+            
+            # Create analysis session with captured paths
+            self.current_session_id = self.db_manager.create_analysis_session(
+                self.current_user_id,
+                front_captured_path or front_input_path,
+                side_captured_path or side_input_path
+            )
+            
+            # Update session status to processing
+            self._update_session_status('processing')
+            
+        except Exception as e:
+            print(f"❌ Error initializing database session: {e}")
+    
+    def _update_session_status(self, status):
+        """Update session status in database"""
+        try:
+            if self.current_session_id:
+                self.db_manager.update_session_status(self.current_session_id, status)
+        except Exception as e:
+            print(f"❌ Error updating session status: {e}")
+    
+    def _save_body_measurements(self):
+        """Save body measurements from CNN output to database"""
+        try:
+            if not self.current_session_id:
+                return
+            
+            # Read CNN output file
+            measurements_path = os.path.join(OUTPUT_FILES_DIR, "output_data_avatar_male_fromImg.csv")
+            if not os.path.exists(measurements_path):
+                print(f"⚠️  Measurements file not found: {measurements_path}")
+                return
+            
+            import pandas as pd
+            df = pd.read_csv(measurements_path, delimiter='|')
+            
+            measurements = []
+            for _, row in df.iterrows():
+                measurement_name = str(row['Measurement']).strip()
+                if measurement_name and measurement_name != 'Measurement':  # Skip header row
+                    measurements.append({
+                        'type': measurement_name,
+                        'basic_input': self._safe_float(row['Basic-Input']),
+                        'predicted_input': self._safe_float(row['Predicted-Input']),
+                        'avatar_output': self._safe_float(row['3D Avatar-Output']),
+                        'unit': 'cm' if 'girth' in measurement_name.lower() or 'stature' in measurement_name.lower() else 'kg'
+                    })
+            
+            # Insert measurements into database
+            if measurements:
+                self.db_manager.insert_body_measurements(self.current_session_id, measurements)
+                
+        except Exception as e:
+            print(f"❌ Error saving body measurements: {e}")
+    
+    def _save_somatotype_classification(self):
+        """Save somatotype classification from classifier output to database"""
+        try:
+            if not self.current_session_id:
+                return
+                
+            # Read classification output file
+            classification_path = os.path.join(OUTPUT_FILES_DIR, "output_classification.csv")
+            if not os.path.exists(classification_path):
+                print(f"⚠️  Classification file not found: {classification_path}")
+                return
+            
+            import pandas as pd
+            df = pd.read_csv(classification_path)
+            
+            if len(df) > 0:
+                row = df.iloc[0]  # Get first row
+                classification_data = {
+                    'endomorphy': self._safe_float(row['Endomorphy']),
+                    'mesomorphy': self._safe_float(row['Mesomorphy']),
+                    'ectomorphy': self._safe_float(row['Ectomorphy']),
+                    'somatotype_class': str(row['Somatotype']),
+                    'confidence_score': 0.85  # Default confidence
+                }
+                
+                self.db_manager.insert_somatotype_classification(self.current_session_id, classification_data)
+                
+        except Exception as e:
+            print(f"❌ Error saving somatotype classification: {e}")
+    
+    def _save_diet_recommendations(self):
+        """Save diet recommendations from recommender output to database"""
+        try:
+            if not self.current_session_id:
+                return
+                
+            # Read recommendation output file
+            recommendation_path = os.path.join(OUTPUT_FILES_DIR, "output_recommendation.csv")
+            if not os.path.exists(recommendation_path):
+                print(f"⚠️  Recommendation file not found: {recommendation_path}")
+                return
+            
+            import pandas as pd
+            import json
+            
+            # Read the CSV file carefully since it has multiple sections
+            with open(recommendation_path, 'r') as file:
+                lines = file.readlines()
+            
+            # Parse macronutrients section
+            macros = {}
+            foods = []
+            insights = ""
+            
+            in_macros = True
+            in_foods = False
+            in_insights = False
+            
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                    
+                if line == "Suggested Foods":
+                    in_macros = False
+                    in_foods = True
+                    continue
+                elif line == "Nutrition Insights":
+                    in_foods = False
+                    in_insights = True
+                    continue
+                
+                if in_macros and "," in line:
+                    key, value = line.split(",", 1)
+                    if key.strip() in ['calories', 'protein', 'carbs', 'fat', 'bmr', 'tdee']:
+                        macros[key.strip()] = self._safe_int(value.strip())
+                    elif key.strip() == 'somatotype':
+                        insights = f"Somatotype: {value.strip()}"
+                        
+                elif in_foods and line and line not in ['Suggested Foods', 'Nutrition Insights']:
+                    foods.append(line.strip())
+                    
+                elif in_insights and line:
+                    if insights:
+                        insights += " | " + line.strip()
+                    else:
+                        insights = line.strip()
+            
+            # Read meal recommendations JSON file
+            meal_recommendations_json = "{}"
+            meal_json_path = os.path.join(OUTPUT_FILES_DIR, "meal_recommendations.json")
+            if os.path.exists(meal_json_path):
+                try:
+                    with open(meal_json_path, 'r') as f:
+                        meal_data = json.load(f)
+                        meal_recommendations_json = json.dumps(meal_data)
+                        print(f"✅ Loaded meal recommendations from {meal_json_path}")
+                except Exception as e:
+                    print(f"⚠️  Error reading meal recommendations JSON: {e}")
+            else:
+                print(f"⚠️  Meal recommendations JSON not found: {meal_json_path}")
+            
+            # Prepare recommendation data
+            recommendation_data = {
+                'calories': macros.get('calories', 2000),
+                'protein': macros.get('protein', 150),
+                'carbs': macros.get('carbs', 200),
+                'fat': macros.get('fat', 80),
+                'bmr': macros.get('bmr', 1500),
+                'tdee': macros.get('tdee', 2000),
+                'nutrition_insights': insights,
+                'meal_recommendations': meal_recommendations_json
+            }
+            
+            # Calculate macronutrient percentages
+            total_calories = recommendation_data['calories']
+            if total_calories > 0:
+                recommendation_data['protein_percentage'] = round((recommendation_data['protein'] * 4) / total_calories * 100, 1)
+                recommendation_data['carbs_percentage'] = round((recommendation_data['carbs'] * 4) / total_calories * 100, 1)
+                recommendation_data['fat_percentage'] = round((recommendation_data['fat'] * 9) / total_calories * 100, 1)
+            
+            # Insert diet recommendation
+            recommendation_id = self.db_manager.insert_diet_recommendation(self.current_session_id, recommendation_data)
+            
+            # Insert recommended foods
+            if foods and recommendation_id:
+                self.db_manager.insert_recommended_foods(recommendation_id, foods)
+                
+        except Exception as e:
+            print(f"❌ Error saving diet recommendations: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _safe_float(self, value):
+        """Safely convert value to float"""
+        try:
+            return float(str(value).strip())
+        except (ValueError, TypeError):
+            return 0.0
+    
+    def _safe_int(self, value):
+        """Safely convert value to int"""
+        try:
+            return int(float(str(value).strip()))
+        except (ValueError, TypeError):
+            return 0
+
     def on_show(self):
         """Called when the page is shown - reset and start processing"""
+        # Load content lazily when page is first shown
+        self.load_content()
+        
         self.stop_requested = False
         
         # Reset cancel button
-        self.cancel_button.configure(text="Cancel", text_color=ThemeManager.GRAY_MEDIUM)
+        if hasattr(self, 'cancel_button'):
+            self.cancel_button.configure(text="Cancel", text_color=ThemeManager.GRAY_MEDIUM)
         
         # Reset all steps to waiting state
-        for step_name in self.processing_steps:
-            self.update_step(step_name, self.processing_steps[step_name].STATUS_WAITING, progress=0.0)
+        if hasattr(self, 'processing_steps'):
+            for step_name in self.processing_steps:
+                self.update_step(step_name, self.processing_steps[step_name].STATUS_WAITING, progress=0.0)
         
         # Reset visual card
-        self.visual_card.show_visual("initializing")
+        if hasattr(self, 'visual_card'):
+            self.visual_card.show_visual("initializing")
         self.visual_card.remaining_time = 35
         
         # Start processing with brief delay for better UX

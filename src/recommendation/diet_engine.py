@@ -752,6 +752,156 @@ class DietRecommendationEngine:
             ]
         }
 
+    def save_recommendations_to_csv(self, output_path: str = None) -> str:
+        """
+        Save comprehensive recommendations to CSV file in the expected format
+        
+        Args:
+            output_path: Path to save the CSV file. If None, uses default output location
+            
+        Returns:
+            Path to the saved file
+        """
+        if output_path is None:
+            output_path = os.path.join(OUTPUT_FILES_DIR, "output_recommendation.csv")
+        
+        try:
+            # Generate comprehensive recommendations
+            recommendations = self.generate_comprehensive_recommendations()
+            meal_recommendations = self.generate_meal_based_recommendations()
+            
+            # Extract macronutrient data
+            macros = recommendations.get('macros', {})
+            
+            # Create CSV content
+            lines = []
+            
+            # Macronutrients section
+            lines.append(f"calories,{macros.get('calories', 2000)}")
+            lines.append(f"protein,{macros.get('protein_g', 150)}")
+            lines.append(f"carbs,{macros.get('carbs_g', 200)}")
+            lines.append(f"fat,{macros.get('fat_g', 80)}")
+            lines.append(f"bmr,{macros.get('bmr', 1500)}")
+            lines.append(f"tdee,{macros.get('tdee', 2000)}")
+            lines.append(f"somatotype,{macros.get('somatotype', 'mesomorph')}")
+            lines.append("")
+            
+            # Suggested Foods section
+            lines.append("Suggested Foods")
+            
+            # Add foods from all meal categories
+            food_count = 0
+            max_foods = 20  # Limit to prevent too many foods
+            
+            for meal_type, foods in meal_recommendations.items():
+                for food in foods[:5]:  # Max 5 foods per meal type
+                    if food_count >= max_foods:
+                        break
+                    food_name = food.get('Food_Item', 'Unknown Food')
+                    category = food.get('Enhanced_Category', 'general').replace('_', ' ').title()
+                    lines.append(f"{food_name} ({category})")
+                    food_count += 1
+                if food_count >= max_foods:
+                    break
+            
+            lines.append("")
+            
+            # Nutrition Insights section
+            lines.append("Nutrition Insights")
+            
+            # Add personalized insights
+            somatotype = macros.get('somatotype', 'mesomorph').title()
+            goal = macros.get('goal', 'maintain_weight').replace('_', ' ').title()
+            activity = macros.get('activity_level', 'moderate').title()
+            
+            lines.append(f"Optimized for {somatotype} body type")
+            lines.append(f"Goal: {goal}")
+            lines.append(f"Activity Level: {activity}")
+            lines.append(f"Meal distribution supports your metabolic profile")
+            
+            # Add somatotype-specific insights
+            somatotype_insights = {
+                'ectomorph': [
+                    "Higher calorie intake to support weight gain",
+                    "Focus on complex carbohydrates for sustained energy",
+                    "Frequent meals to maximize nutrient absorption"
+                ],
+                'mesomorph': [
+                    "Balanced macronutrient distribution for optimal performance",
+                    "Moderate calorie surplus/deficit based on goals",
+                    "Emphasizes protein for muscle maintenance and growth"
+                ],
+                'endomorph': [
+                    "Controlled calorie intake for effective weight management",
+                    "Higher protein ratio to boost metabolism",
+                    "Focus on nutrient-dense, lower glycemic foods"
+                ]
+            }
+            
+            soma_key = macros.get('somatotype', 'mesomorph').lower()
+            if soma_key in somatotype_insights:
+                for insight in somatotype_insights[soma_key]:
+                    lines.append(insight)
+            
+            # Write to file
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            with open(output_path, 'w') as f:
+                f.write('\n'.join(lines))
+            
+            print(f"✅ Saved diet recommendations to {output_path}")
+            return output_path
+            
+        except Exception as e:
+            print(f"❌ Error saving recommendations to CSV: {e}")
+            raise
+    
+    def save_meal_recommendations_to_json(self, output_path: str = None) -> str:
+        """
+        Save meal-based recommendations to JSON file for database storage
+        
+        Args:
+            output_path: Path to save the JSON file. If None, uses default output location
+            
+        Returns:
+            Path to the saved file
+        """
+        if output_path is None:
+            output_path = os.path.join(OUTPUT_FILES_DIR, "meal_recommendations.json")
+        
+        try:
+            import json
+            
+            # Generate meal recommendations
+            meal_recommendations = self.generate_meal_based_recommendations()
+            
+            # Convert to serializable format
+            serializable_meals = {}
+            for meal_type, foods in meal_recommendations.items():
+                serializable_meals[meal_type] = []
+                for food in foods:
+                    food_dict = {}
+                    for key, value in food.items():
+                        # Convert numpy types and handle NaN values
+                        if pd.isna(value):
+                            food_dict[key] = None
+                        elif hasattr(value, 'item'):  # numpy types
+                            food_dict[key] = value.item()
+                        else:
+                            food_dict[key] = value
+                    serializable_meals[meal_type].append(food_dict)
+            
+            # Write to file
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            with open(output_path, 'w') as f:
+                json.dump(serializable_meals, f, indent=2)
+            
+            print(f"✅ Saved meal recommendations to {output_path}")
+            return output_path
+            
+        except Exception as e:
+            print(f"❌ Error saving meal recommendations to JSON: {e}")
+            raise
+
 # Example usage and testing
 if __name__ == "__main__":
     print("Initializing Diet Recommendation Engine...")
