@@ -1,4 +1,6 @@
 .venv/
 __pycache__/
+data/database/app_data.db
+data/database/captured_poses
 *.pyc
 *.pyo
