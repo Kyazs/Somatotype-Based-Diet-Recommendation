@@ -748,9 +748,19 @@ class ProcessingPage(ctk.CTkFrame):
                 self._save_diet_recommendations()
                 # Mark session as completed
                 self._update_session_status('completed')
+                
+                # Ensure all database writes are committed before navigation
+                try:
+                    # Force database sync by creating a new connection and closing it
+                    with self.db_manager.connect_db() as conn:
+                        conn.execute("PRAGMA wal_checkpoint(FULL)")
+                        conn.commit()
+                except Exception as db_error:
+                    print(f"Warning: Database sync error: {db_error}")
+                
                 # Brief success moment before navigation
                 time.sleep(1)
-                self.controller.after(500, lambda: self.controller.show_frame("DietPage"))
+                self.controller.after(1000, lambda: self.controller.show_frame("DietPage"))
             else:
                 self.update_step("diet_plan", self.processing_steps["diet_plan"].STATUS_ERROR, "Diet generation failed")
                 self._update_session_status('failed')
