@@ -1,0 +1,21 @@
+Measurement,Value,Unit
+Height,159.5,cm
+Weight,42.5,kg
+Triceps_Skinfold,13.0,mm
+Subscapular_Skinfold,8.0,mm
+Supraspinale_Skinfold,12.0,mm
+Calf_Skinfold,7.0,mm
+Humerus_Breadth,5.4,cm
+Femur_Breadth,9.4,cm
+Arm_Circumference_Flexed,25.6,cm
+Calf_Circumference,29.8,cm
+
+HEATH-CARTER SOMATOTYPE RESULTS:
+Endomorphy,3.6,rating
+Mesomorphy,3.1,rating
+Ectomorphy,4.9,rating
+Somatotype,3.6-3.1-4.9,rating
+Classification,Ectomorph,category
+Height_Weight_Ratio,45.71,ratio
+Corrected_Arm_Girth,24.3,cm
+Corrected_Calf_Girth,29.1,cm
