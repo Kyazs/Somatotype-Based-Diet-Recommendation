@@ -7,6 +7,7 @@ PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.append(PROJECT_DIR)
 
 from src.utils.utils import OUTPUT_FILES_DIR  # Correct import path
+from src.classification.calculate_somatotype import calculate_heath_carter_somatotype, classify_somatotype
 
 
 def load_csv_data(file_path):
@@ -62,18 +63,15 @@ def get_measurement(df, name):
         raise ValueError(f"Measurement '{name}' not found in the DataFrame.")
     return matching_rows.values[0]
 
-def calculate_somatotype(
+def calculate_somatotype_from_measurements(
     weight, stature, chest, waist, hips, shoulder, thigh, calf, neck
 ):
     """
-    Calculate the somatotype based on anthropometric measurements.
-
-    Description:
-        The somatotype is a classification of body type into three categories:
-        Endomorph (fatness), Mesomorph (muscularity), and Ectomorph (linearity).
-        This function computes the values for each category on a scale of 1-7 and determines 
-        the somatotype classification based on the triangle somatochart.
-
+    Calculate the somatotype using Heath-Carter method from body measurements.
+    
+    This function converts body measurements to approximate skinfold and breadth
+    measurements for use with the Heath-Carter calculation.
+    
     Args:
         weight (float): Body weight in kilograms.
         stature (float): Height in centimeters.
@@ -87,107 +85,128 @@ def calculate_somatotype(
 
     Returns:
         tuple: A tuple containing:
-            - endomorphy (float): The calculated endomorphy value (1-7 scale).
-            - mesomorphy (float): The calculated mesomorphy value (1-7 scale).
-            - ectomorphy (float): The calculated ectomorphy value (1-7 scale).
-            - somatotype (str): The somatotype classification based on triangle somatochart.
+            - endomorphy (float): The calculated endomorphy value.
+            - mesomorphy (float): The calculated mesomorphy value.
+            - ectomorphy (float): The calculated ectomorphy value.
+            - somatotype (str): The somatotype classification.
     """
-    # Calculate raw values first
-    k = 0.5
-    sum_skinfold = waist * k
-    raw_endomorphy = (
-        -0.7182
-        + 0.1451 * sum_skinfold
-        - 0.00068 * (sum_skinfold**2)
-        + 0.0000014 * (sum_skinfold**3)
+    # Convert circumferences to approximate skinfold and breadth measurements
+    # These are approximations based on typical ratios
+    
+    # Skinfold approximations (in mm) - based on circumference ratios
+    triceps_mm = max(5, min(40, (chest - 85) * 0.3 + 12))  # approximate triceps skinfold
+    subscapular_mm = max(5, min(40, (waist - 70) * 0.25 + 10))  # approximate subscapular
+    supraspinale_mm = max(5, min(40, (waist - 70) * 0.2 + 8))  # approximate supraspinale
+    calf_skinfold_mm = max(3, min(25, (calf - 30) * 0.2 + 7))  # approximate calf skinfold
+    
+    # Breadth approximations (in cm) - based on circumferences and typical ratios
+    humerus_breadth_cm = max(4, min(8, chest * 0.08))  # approximate humerus breadth
+    femur_breadth_cm = max(7, min(12, hips * 0.1))  # approximate femur breadth
+    
+    # Use actual circumferences for arm and calf girths
+    arm_girth_cm = max(chest * 0.35, 20)  # approximate flexed arm girth
+    calf_girth_cm = calf
+    
+    # Calculate Heath-Carter somatotype
+    result = calculate_heath_carter_somatotype(
+        height_cm=stature,
+        weight_kg=weight,
+        triceps_mm=triceps_mm,
+        subscapular_mm=subscapular_mm,
+        supraspinale_mm=supraspinale_mm,
+        calf_skinfold_mm=calf_skinfold_mm,
+        humerus_breadth_cm=humerus_breadth_cm,
+        femur_breadth_cm=femur_breadth_cm,
+        arm_girth_cm=arm_girth_cm,
+        calf_girth_cm=calf_girth_cm
     )
-
-    raw_mesomorphy = 2.0 * ((shoulder + chest + thigh) / stature) - 1.0
-
-    cube_root_weight = weight ** (1 / 3)
-    HWR = stature / cube_root_weight
-
-    if HWR > 40.75:
-        raw_ectomorphy = 0.732 * HWR - 28.58
-    elif HWR >= 38.25:
-        raw_ectomorphy = 0.463 * HWR - 17.63
-    else:
-        raw_ectomorphy = 0.1
-
-    # Scale values to 1-7 range and ensure they're within bounds
-    def scale_to_range(value, min_val=-3, max_val=10):
-        """Scale a value to 1-7 range"""
-        scaled = ((value - min_val) / (max_val - min_val)) * 6 + 1
-        return max(1.0, min(7.0, scaled))
-
-    endomorphy = scale_to_range(raw_endomorphy)
-    mesomorphy = scale_to_range(raw_mesomorphy)
-    ectomorphy = scale_to_range(raw_ectomorphy)
-
-    # Determine somatotype classification based on triangle somatochart
-    def classify_somatotype(endo, meso, ecto):
-        """Classify somatotype based on the three component values"""
-        # Round to nearest 0.5 for classification
-        e = round(endo * 2) / 2
-        m = round(meso * 2) / 2
-        c = round(ecto * 2) / 2
-        
-        # Determine dominant components
-        max_val = max(e, m, c)
-        min_val = min(e, m, c)
-        
-        # Check for balanced type (all values within 1 point of each other)
-        if max_val - min_val <= 1.0:
-            if max_val <= 3.5:
-                return "Central"
-            else:
-                return "Balanced"
-        
-        # Determine primary and secondary components
-        components = [("Endo", e), ("Meso", m), ("Ecto", c)]
-        components.sort(key=lambda x: x[1], reverse=True)
-        
-        primary = components[0]
-        secondary = components[1]
-        
-        # If primary is significantly higher than secondary (>1.5 points)
-        if primary[1] - secondary[1] > 1.5:
-            if primary[0] == "Endo":
-                return "Endomorph"
-            elif primary[0] == "Meso":
-                return "Mesomorph"
-            else:
-                return "Ectomorph"
-        
-        # Mixed types based on two highest components
-        primary_name = primary[0]
-        secondary_name = secondary[0]
-        
-        if "Endo" in [primary_name, secondary_name] and "Meso" in [primary_name, secondary_name]:
-            return "Endo-Mesomorph" if e > m else "Meso-Endomorph"
-        elif "Meso" in [primary_name, secondary_name] and "Ecto" in [primary_name, secondary_name]:
-            return "Meso-Ectomorph" if m > c else "Ecto-Mesomorph"
-        elif "Endo" in [primary_name, secondary_name] and "Ecto" in [primary_name, secondary_name]:
-            return "Endo-Ectomorph" if e > c else "Ecto-Endomorph"
-        
-        return "Balanced"
-
-    somatotype = classify_somatotype(endomorphy, mesomorphy, ectomorphy)
+    
+    # Classify the somatotype
+    somatotype_class = classify_somatotype(
+        result['endomorphy'], 
+        result['mesomorphy'], 
+        result['ectomorphy']
+    )
 
     # Save results to a CSV file
     output_file = os.path.join(OUTPUT_FILES_DIR, "output_classification.csv")
     result_df = pd.DataFrame(
         {
-            "Endomorphy": [round(endomorphy, 1)],
-            "Mesomorphy": [round(mesomorphy, 1)],
-            "Ectomorphy": [round(ectomorphy, 1)],
-            "Somatotype": [somatotype],
+            "Endomorphy": [result['endomorphy']],
+            "Mesomorphy": [result['mesomorphy']],
+            "Ectomorphy": [result['ectomorphy']],
+            "Somatotype": [somatotype_class],
+            "HWR": [result['hwr']]
         }
     )
     result_df.to_csv(output_file, index=False)
-    print(f"Results saved to {output_file}")
+    print(f"Heath-Carter somatotype results saved to {output_file}")
 
-    return round(endomorphy, 1), round(mesomorphy, 1), round(ectomorphy, 1), somatotype
+    return result['endomorphy'], result['mesomorphy'], result['ectomorphy'], somatotype_class
+
+def test_with_sample_data():
+    """
+    Test the Heath-Carter somatotype calculation with sample anthropometric data.
+    """
+    # Load sample data from the CSV file
+    sample_file = os.path.join(os.path.dirname(__file__), "sample_anthropometric_data.csv")
+    
+    try:
+        df = pd.read_csv(sample_file)
+        
+        # Extract measurements from the CSV
+        measurements = {}
+        for _, row in df.iterrows():
+            measurements[row['Measurement']] = row['Value']
+        
+        # Calculate Heath-Carter somatotype directly
+        result = calculate_heath_carter_somatotype(
+            height_cm=measurements['Height'],
+            weight_kg=measurements['Weight'],
+            triceps_mm=measurements['Triceps_Skinfold'],
+            subscapular_mm=measurements['Subscapular_Skinfold'],
+            supraspinale_mm=measurements['Supraspinale_Skinfold'],
+            calf_skinfold_mm=measurements['Calf_Skinfold'],
+            humerus_breadth_cm=measurements['Humerus_Breadth'],
+            femur_breadth_cm=measurements['Femur_Breadth'],
+            arm_girth_cm=measurements['Arm_Circumference_Flexed'],
+            calf_girth_cm=measurements['Calf_Circumference']
+        )
+        
+        # Classify the somatotype
+        classification = classify_somatotype(
+            result['endomorphy'], 
+            result['mesomorphy'], 
+            result['ectomorphy']
+        )
+        
+        print("=== HEATH-CARTER SOMATOTYPE TEST ===")
+        print(f"Height: {measurements['Height']} cm")
+        print(f"Weight: {measurements['Weight']} kg")
+        print(f"Endomorphy: {result['endomorphy']}")
+        print(f"Mesomorphy: {result['mesomorphy']}")
+        print(f"Ectomorphy: {result['ectomorphy']}")
+        print(f"Somatotype: {result['endomorphy']}-{result['mesomorphy']}-{result['ectomorphy']}")
+        print(f"Classification: {classification}")
+        print(f"Height-Weight Ratio: {result['hwr']}")
+        
+        # Save results to output file
+        output_file = os.path.join(OUTPUT_FILES_DIR, "output_classification.csv")
+        result_df = pd.DataFrame({
+            "Endomorphy": [result['endomorphy']],
+            "Mesomorphy": [result['mesomorphy']],
+            "Ectomorphy": [result['ectomorphy']],
+            "Somatotype": [classification],
+            "HWR": [result['hwr']]
+        })
+        result_df.to_csv(output_file, index=False)
+        print(f"Results saved to {output_file}")
+        
+        return result['endomorphy'], result['mesomorphy'], result['ectomorphy'], classification
+        
+    except Exception as e:
+        print(f"Error testing with sample data: {e}")
+        return None
 
 def main():
     """
@@ -203,7 +222,22 @@ def main():
     Returns:
         None
     """
+    # First test with sample data if available
+    sample_result = test_with_sample_data()
+    if sample_result:
+        print("\n" + "="*50)
+        print("Sample data test completed successfully!")
+        print("="*50)
+        return
+    
+    # Fallback to original method if sample data not available
     csv_file_path = f"{OUTPUT_FILES_DIR}/output_data_avatar_male_fromImg.csv"
+    
+    if not os.path.exists(csv_file_path):
+        print(f"Avatar data file not found: {csv_file_path}")
+        print("Please run the CNN model first to generate avatar measurements.")
+        return
+        
     df = load_csv_data(csv_file_path)
 
     weight = get_measurement(df, "weight_kg")  # in kg
@@ -226,7 +260,7 @@ def main():
     print(f"Calf: {calf} cm")
     print(f"Neck: {neck} cm")
 
-    endomorphy, mesomorphy, ectomorphy, somatotype = calculate_somatotype(
+    endomorphy, mesomorphy, ectomorphy, somatotype = calculate_somatotype_from_measurements(
         weight, stature, chest, waist, hips, shoulder, thigh, calf, neck
     )
 

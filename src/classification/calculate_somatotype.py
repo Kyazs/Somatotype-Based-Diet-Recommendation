@@ -21,6 +21,18 @@ def calculate_heath_carter_somatotype(height_cm, weight_kg, triceps_mm, subscapu
     - Dictionary with endomorphy, mesomorphy, ectomorphy values and classification
     """
     
+    # Ensure all inputs are floats
+    height_cm = float(height_cm)
+    weight_kg = float(weight_kg)
+    triceps_mm = float(triceps_mm)
+    subscapular_mm = float(subscapular_mm)
+    supraspinale_mm = float(supraspinale_mm)
+    calf_skinfold_mm = float(calf_skinfold_mm)
+    humerus_breadth_cm = float(humerus_breadth_cm)
+    femur_breadth_cm = float(femur_breadth_cm)
+    arm_girth_cm = float(arm_girth_cm)
+    calf_girth_cm = float(calf_girth_cm)
+    
     # Convert skinfolds to cm for calculations
     triceps_cm = triceps_mm / 10
     calf_skinfold_cm = calf_skinfold_mm / 10
