@@ -21,7 +21,9 @@ class DatabaseManager:
     """
     Comprehensive database manager for the Diet Recommendation System.
     Handles all database operations including user data, analysis results,
-    and recommendation history.
+          except sqlite3.Error as e:
+            print(f"Error retrieving database stats: {e}")
+            return {}nd recommendation history.
     """
     
     def __init__(self, db_path: Optional[str] = None):
@@ -178,6 +180,33 @@ class DatabaseManager:
                     )
                 """)
                 
+                # Create Fitness Recommendations table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS fitness_recommendations (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        session_id INTEGER NOT NULL,
+                        fitness_strategy TEXT,
+                        strength_days INTEGER DEFAULT 0,
+                        cardio_days INTEGER DEFAULT 0,
+                        exercise_recommendations TEXT,  -- JSON format
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (session_id) REFERENCES analysis_sessions (id) ON DELETE CASCADE
+                    )
+                """)
+                
+                # Create Recommended Exercises table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS recommended_exercises (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        fitness_recommendation_id INTEGER NOT NULL,
+                        exercise_id TEXT NOT NULL,
+                        exercise_name TEXT NOT NULL,
+                        exercise_category TEXT,
+                        priority_order INTEGER DEFAULT 0,
+                        FOREIGN KEY (fitness_recommendation_id) REFERENCES fitness_recommendations (id) ON DELETE CASCADE
+                    )
+                """)
+                
                 # Create indexes for better query performance
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_name ON users(name)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user_date ON analysis_sessions(user_id, session_date)")
@@ -185,6 +214,8 @@ class DatabaseManager:
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_somatotype_session ON somatotype_classifications(session_id)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_recommendations_session ON diet_recommendations(session_id)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_foods_recommendation ON recommended_foods(recommendation_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_fitness_session ON fitness_recommendations(session_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_exercises_fitness ON recommended_exercises(fitness_recommendation_id)")
                 
                 conn.commit()
                 print("✅ Database initialized successfully")
@@ -214,6 +245,50 @@ class DatabaseManager:
                     """)
                     print("✅ meal_recommendations column added successfully")
                 
+                if 'template_id' not in columns:
+                    print("🔄 Adding template_id column to diet_recommendations table...")
+                    cursor.execute("""
+                        ALTER TABLE diet_recommendations 
+                        ADD COLUMN template_id TEXT DEFAULT NULL
+                    """)
+                    print("✅ template_id column added successfully")
+                
+                if 'diet_principles' not in columns:
+                    print("🔄 Adding diet_principles column to diet_recommendations table...")
+                    cursor.execute("""
+                        ALTER TABLE diet_recommendations 
+                        ADD COLUMN diet_principles TEXT DEFAULT NULL
+                    """)
+                    print("✅ diet_principles column added successfully")
+                
+                if 'fitness_strategy' not in columns:
+                    print("🔄 Adding fitness_strategy column to diet_recommendations table...")
+                    cursor.execute("""
+                        ALTER TABLE diet_recommendations 
+                        ADD COLUMN fitness_strategy TEXT DEFAULT NULL
+                    """)
+                    print("✅ fitness_strategy column added successfully")
+                
+                # Check if exercise fields exist in users table
+                cursor.execute("PRAGMA table_info(users)")
+                user_columns = [row[1] for row in cursor.fetchall()]
+                
+                if 'exercise_type' not in user_columns:
+                    print("🔄 Adding exercise_type column to users table...")
+                    cursor.execute("""
+                        ALTER TABLE users 
+                        ADD COLUMN exercise_type TEXT DEFAULT 'bodyweight'
+                    """)
+                    print("✅ exercise_type column added successfully")
+                    
+                if 'exercise_complexity' not in user_columns:
+                    print("🔄 Adding exercise_complexity column to users table...")
+                    cursor.execute("""
+                        ALTER TABLE users 
+                        ADD COLUMN exercise_complexity TEXT DEFAULT 'beginner'
+                    """)
+                    print("✅ exercise_complexity column added successfully")
+                
                 conn.commit()
                 
         except sqlite3.Error as e:
@@ -227,8 +302,8 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 
                 cursor.execute("""
-                    INSERT INTO users (name, age, gender, height_cm, weight_kg, goal, activity_level)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO users (name, age, gender, height_cm, weight_kg, goal, activity_level, exercise_type, exercise_complexity)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     user_data['name'],
                     user_data['age'], 
@@ -236,7 +311,9 @@ class DatabaseManager:
                     user_data['height'],
                     user_data['weight'],
                     user_data['goal'],
-                    user_data['activity_level']
+                    user_data['activity_level'],
+                    user_data.get('exercise_type', 'bodyweight'),
+                    user_data.get('exercise_complexity', 'beginner')
                 ))
                 
                 user_id = cursor.lastrowid
@@ -359,8 +436,9 @@ class DatabaseManager:
                 cursor.execute("""
                     INSERT INTO diet_recommendations 
                     (session_id, calories, protein_g, carbs_g, fat_g, bmr, tdee, 
-                     protein_percentage, carbs_percentage, fat_percentage, nutrition_insights, meal_recommendations)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     protein_percentage, carbs_percentage, fat_percentage, nutrition_insights, 
+                     meal_recommendations, template_id, diet_principles, fitness_strategy)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     session_id,
                     recommendation['calories'],
@@ -373,7 +451,10 @@ class DatabaseManager:
                     recommendation.get('carbs_percentage'),
                     recommendation.get('fat_percentage'),
                     recommendation.get('nutrition_insights'),
-                    recommendation.get('meal_recommendations', '{}')  # JSON string of meal data
+                    recommendation.get('meal_recommendations', '{}'),  # JSON string of meal data
+                    recommendation.get('template_id'),  # Template ID for mapping
+                    recommendation.get('diet_principles', '[]'),  # JSON string of principles
+                    recommendation.get('fitness_strategy', '{}')  # JSON string of fitness strategy
                 ))
                 
                 recommendation_id = cursor.lastrowid
@@ -526,13 +607,16 @@ class DatabaseManager:
                         'carbs_percentage': row['carbs_percentage'],
                         'fat_percentage': row['fat_percentage'],
                         'nutrition_insights': row['nutrition_insights'],
+                        'template_id': row['template_id'] if 'template_id' in row.keys() else None,
                         'nutrition_data': {
                             'protein_percentage': row['protein_percentage'],
-                            'carbs_percentage': row['carbs_percentage'],
+                            'carbs_percentage': row['carbs_percentage'],  
                             'fat_percentage': row['fat_percentage']
                         },
                         'recommended_foods': [dict(food) for food in foods],
-                        'meal_recommendations': row['meal_recommendations'] if row['meal_recommendations'] else '{}'
+                        'meal_recommendations': row['meal_recommendations'] if row['meal_recommendations'] else '{}',
+                        'diet_principles': row['diet_principles'] if 'diet_principles' in row.keys() and row['diet_principles'] else '[]',
+                        'fitness_strategy': row['fitness_strategy'] if 'fitness_strategy' in row.keys() and row['fitness_strategy'] else '{}'
                     }
                 return {}
                 
@@ -635,7 +719,8 @@ class DatabaseManager:
                 # Count records in each table
                 tables = [
                     'users', 'analysis_sessions', 'body_measurements',
-                    'somatotype_classifications', 'diet_recommendations', 'recommended_foods'
+                    'somatotype_classifications', 'diet_recommendations', 'recommended_foods',
+                    'fitness_recommendations', 'recommended_exercises'
                 ]
                 
                 for table in tables:
@@ -653,6 +738,109 @@ class DatabaseManager:
                 
         except sqlite3.Error as e:
             print(f"Error getting database stats: {e}")
+            return {}
+
+    def insert_fitness_recommendation(self, session_id: int, fitness_data: Dict[str, Any]) -> int:
+        """Insert fitness recommendation and return fitness recommendation ID"""
+        try:
+            with self.connect_db() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    INSERT INTO fitness_recommendations (
+                        session_id, fitness_strategy, strength_days, cardio_days, exercise_recommendations
+                    ) VALUES (?, ?, ?, ?, ?)
+                """, (
+                    session_id,
+                    fitness_data.get('fitness_strategy', ''),
+                    fitness_data.get('strength_days', 0),
+                    fitness_data.get('cardio_days', 0),
+                    json.dumps(fitness_data.get('exercises', {}))
+                ))
+                
+                fitness_rec_id = cursor.lastrowid
+                conn.commit()
+                print(f"✅ Fitness recommendation inserted with ID: {fitness_rec_id}")
+                return fitness_rec_id
+                
+        except sqlite3.Error as e:
+            print(f"Error inserting fitness recommendation: {e}")
+            raise
+    
+    def insert_recommended_exercises(self, fitness_rec_id: int, exercises: List[Dict[str, Any]]):
+        """Insert recommended exercises for a fitness recommendation"""
+        try:
+            with self.connect_db() as conn:
+                cursor = conn.cursor()
+                
+                for i, exercise in enumerate(exercises):
+                    cursor.execute("""
+                        INSERT INTO recommended_exercises (
+                            fitness_recommendation_id, exercise_id, exercise_name, exercise_category, priority_order
+                        ) VALUES (?, ?, ?, ?, ?)
+                    """, (
+                        fitness_rec_id,
+                        exercise.get('id', ''),
+                        exercise.get('name', ''),
+                        exercise.get('category', ''),
+                        i + 1
+                    ))
+                
+                conn.commit()
+                print(f"✅ Inserted {len(exercises)} recommended exercises")
+                
+        except sqlite3.Error as e:
+            print(f"Error inserting recommended exercises: {e}")
+            raise
+
+    def get_fitness_recommendations(self, session_id: int) -> Dict[str, Any]:
+        """Get fitness recommendations for a session"""
+        try:
+            with self.connect_db() as conn:
+                cursor = conn.cursor()
+                
+                # Get fitness recommendation data
+                cursor.execute("""
+                    SELECT fitness_strategy, strength_days, cardio_days, exercise_recommendations
+                    FROM fitness_recommendations
+                    WHERE session_id = ?
+                """, (session_id,))
+                
+                row = cursor.fetchone()
+                if not row:
+                    return {}
+                    
+                fitness_data = {
+                    'fitness_strategy': row[0],
+                    'strength_days': row[1],
+                    'cardio_days': row[2],
+                    'exercises': json.loads(row[3]) if row[3] else {}
+                }
+                
+                # Get recommended exercises
+                cursor.execute("""
+                    SELECT exercise_id, exercise_name, exercise_category, priority_order
+                    FROM recommended_exercises re
+                    JOIN fitness_recommendations fr ON re.fitness_recommendation_id = fr.id
+                    WHERE fr.session_id = ?
+                    ORDER BY priority_order
+                """, (session_id,))
+                
+                exercises = cursor.fetchall()
+                fitness_data['exercise_list'] = [
+                    {
+                        'id': ex[0],
+                        'name': ex[1],
+                        'category': ex[2],
+                        'priority': ex[3]
+                    }
+                    for ex in exercises
+                ]
+                
+                return fitness_data
+                
+        except sqlite3.Error as e:
+            print(f"Error retrieving fitness recommendations: {e}")
             return {}
     
     def close_connection(self):

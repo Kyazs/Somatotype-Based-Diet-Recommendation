@@ -20,6 +20,7 @@ class ThemeManager:
     PRIMARY_COLOR = "#3b82f6"  # Blue 600
     PRIMARY_HOVER = "#2563eb"  # Blue 700
     PRIMARY_COLOR_HOVER = "#2563eb"  # Same as PRIMARY_HOVER for backwards compatibility
+    HOVER_COLOR = "#2563eb"  # Same as PRIMARY_HOVER
     SECONDARY_COLOR = "#f8fafc"  # Gray 50
     SUCCESS_COLOR = "#10b981"  # Green 500
     WARNING_COLOR = "#f59e0b"  # Yellow 500
@@ -165,6 +166,16 @@ class ThemeManager:
     def get_card_fg_color(cls):
         """Returns the foreground color for card elements"""
         return cls.SECONDARY_COLOR
+    
+    @classmethod
+    def get_bg_color(cls):
+        """Returns the background color for the application"""
+        return cls.BG_COLOR
+        
+    @classmethod
+    def get_hover_color(cls):
+        """Returns the hover color for interactive elements"""
+        return cls.PRIMARY_HOVER
         
     @classmethod
     def load_image(cls, image_path, size=(20, 20)):

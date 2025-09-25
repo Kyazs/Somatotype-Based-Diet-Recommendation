@@ -26,6 +26,8 @@ class StateManager:
             "height": "",
             "goal": "Maintain Weight",
             "activity_level": "Moderately active",
+            "exercise_type": "bodyweight",
+            "exercise_complexity": "beginner",
             "allergies": []
         }
         
@@ -93,12 +95,14 @@ class StateManager:
         # Write data to input_info_recommendation.csv
         with open(recommendation_file_path, mode="w", newline="") as recommendation_file:
             recommendation_writer = csv.writer(recommendation_file)
-            recommendation_writer.writerow(["Name", "Age", "Goal", "Activity_Level"])  # Write header
+            recommendation_writer.writerow(["Name", "Age", "Goal", "Activity_Level", "Exercise_Type", "Exercise_Complexity"])  # Write header
             recommendation_writer.writerow([
                 self.user_data["name"], 
                 self.user_data["age"], 
                 self.user_data["goal"],
-                self.user_data["activity_level"]
+                self.user_data["activity_level"],
+                self.user_data["exercise_type"],
+                self.user_data["exercise_complexity"]
             ])
             
         return True
