@@ -1,0 +1,17 @@
+# Ignore all media files in this directory
+*.gif
+*.jpg
+*.jpeg
+*.png
+*.mp4
+*.avi
+*.mov
+*.webp
+*.svg
+
+# Ignore all files except this gitignore
+*
+!.gitignore
+
+# Optional: Keep a readme file if you want to document the media folder
+!README.md
