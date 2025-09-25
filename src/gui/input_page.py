@@ -7,6 +7,7 @@ from tkinter import messagebox
 import os
 import sys
 from utils.theme_manager import ThemeManager
+from utils.notifications import NotificationManager
 
 class InputPage(ctk.CTkFrame):
     """Input page with modern UI design for user data collection"""
@@ -65,7 +66,7 @@ class InputPage(ctk.CTkFrame):
         # Back button
         self.back_button = ThemeManager.create_secondary_button(
             self.header_frame,
-            "Back",
+            "← Back",
             lambda: self.controller.show_frame("LandingPage")
         )
         self.back_button.grid(row=0, column=0, padx=(0, 20))
@@ -208,13 +209,29 @@ class InputPage(ctk.CTkFrame):
         self.activity_dropdown = ThemeManager.create_dropdown(self.form_card, self.activity_options)
         self.activity_dropdown.grid(row=9, column=0, sticky="ew", padx=20, pady=(0, 15), columnspan=2)
         
+        # Exercise Type
+        self.exercise_type_label = ThemeManager.create_label(self.form_card, "Exercise Type", bold=True)
+        self.exercise_type_label.grid(row=10, column=0, sticky="w", padx=20, pady=(0, 5))
+        
+        self.exercise_type_options = ["Bodyweight", "Gym"]
+        self.exercise_type_dropdown = ThemeManager.create_dropdown(self.form_card, self.exercise_type_options)
+        self.exercise_type_dropdown.grid(row=11, column=0, sticky="ew", padx=20, pady=(0, 15))
+        
+        # Exercise Complexity
+        self.exercise_complexity_label = ThemeManager.create_label(self.form_card, "Exercise Complexity", bold=True)
+        self.exercise_complexity_label.grid(row=10, column=1, sticky="w", padx=20, pady=(0, 5))
+        
+        self.exercise_complexity_options = ["Beginner", "Intermediate", "Advanced"]
+        self.exercise_complexity_dropdown = ThemeManager.create_dropdown(self.form_card, self.exercise_complexity_options)
+        self.exercise_complexity_dropdown.grid(row=11, column=1, sticky="ew", padx=20, pady=(0, 15))
+        
         # Submit button
         self.submit_button = ThemeManager.create_primary_button(
             self.form_card,
             "Continue to Image Capture",
             self.submit_details
         )
-        self.submit_button.grid(row=12, column=0, padx=20, pady=20, columnspan=2, sticky="ew")
+        self.submit_button.grid(row=14, column=0, padx=20, pady=20, columnspan=2, sticky="ew")
         
         # Privacy note
         self.privacy_text = ctk.CTkLabel(
@@ -301,6 +318,8 @@ class InputPage(ctk.CTkFrame):
         gender = self.gender_var.get()
         goal = self.goal_dropdown.get()
         activity_level = self.activity_dropdown.get()
+        exercise_type = self.exercise_type_dropdown.get()
+        exercise_complexity = self.exercise_complexity_dropdown.get()
         
         # Combine names into full name
         name_parts = [first_name]
@@ -371,17 +390,22 @@ class InputPage(ctk.CTkFrame):
             height=height,
             goal=goal,
             activity_level=activity_level,
+            exercise_type=exercise_type,
+            exercise_complexity=exercise_complexity,
             # allergies=allergies
         )
         
         # Save data to input files
         self.controller.state_manager.save_user_input_files()
         
-        # Show success message
-        messagebox.showinfo("Success", "Your information has been saved successfully.")
-        
-        # Navigate to capture page
+        # Navigate to capture page first
         self.controller.show_frame("CapturePage")
+        
+        # Show success toast notification (after navigation)
+        self.after(200, lambda: NotificationManager.show_success(
+            self.master, 
+            "Information saved successfully! Ready for image capture."
+        ))
         
     def on_show(self):
         """Called when this page is shown"""
@@ -405,20 +429,31 @@ class InputPage(ctk.CTkFrame):
             elif len(name_parts) == 2:  # First, Last (no middle name)
                 self.last_name_entry.delete(0, "end")
                 self.last_name_entry.insert(0, name_parts[1])
+        else:
+            # Clear name fields if no data
+            self.first_name_entry.delete(0, "end")
+            self.middle_name_entry.delete(0, "end")
+            self.last_name_entry.delete(0, "end")
             
         self.gender_var.set(user_data["gender"])
         
         if user_data["age"]:
             self.age_entry.delete(0, "end")
             self.age_entry.insert(0, user_data["age"])
+        else:
+            self.age_entry.delete(0, "end")
             
         if user_data["weight"]:
             self.weight_entry.delete(0, "end")
             self.weight_entry.insert(0, user_data["weight"])
+        else:
+            self.weight_entry.delete(0, "end")
             
         if user_data["height"]:
             self.height_entry.delete(0, "end")
             self.height_entry.insert(0, user_data["height"])
+        else:
+            self.height_entry.delete(0, "end")
             
         self.goal_dropdown.set(user_data["goal"])
         self.activity_dropdown.set(user_data["activity_level"])
@@ -426,6 +461,25 @@ class InputPage(ctk.CTkFrame):
         # # Set allergies checkboxes
         # for allergy, var in self.allergy_vars.items():
         #     var.set(allergy in user_data["allergies"])
+
+    def clear_form(self):
+        """Clear all form fields"""
+        try:
+            self.first_name_entry.delete(0, "end")
+            self.middle_name_entry.delete(0, "end")
+            self.last_name_entry.delete(0, "end")
+            self.gender_var.set("male")
+            self.age_entry.delete(0, "end")
+            self.weight_entry.delete(0, "end")
+            self.height_entry.delete(0, "end")
+            self.goal_dropdown.set("Maintain Weight")
+            self.activity_dropdown.set("Sedentary (little or no exercise)")
+            # Clear allergies if they exist
+            # if hasattr(self, 'allergy_vars'):
+            #     for var in self.allergy_vars.values():
+            #         var.set(False)
+        except Exception as e:
+            print(f"Error clearing form: {e}")
 
     def _on_mousewheel(self, event):
         """Throttled scroll handler to prevent UI distortion"""

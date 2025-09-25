@@ -9,6 +9,7 @@ import threading
 import os
 import sys
 import time
+import json
 from PIL import Image
 
 # Configuration
@@ -746,6 +747,8 @@ class ProcessingPage(ctk.CTkFrame):
                 self.update_step("diet_plan", self.processing_steps["diet_plan"].STATUS_COMPLETE, "Nutrition plan ready ✓", progress=1.0)
                 # Save diet recommendations to database
                 self._save_diet_recommendations()
+                # Save fitness recommendations to database
+                self._save_fitness_recommendations()
                 # Mark session as completed
                 self._update_session_status('completed')
                 
@@ -1091,6 +1094,62 @@ class ProcessingPage(ctk.CTkFrame):
                 
         except Exception as e:
             print(f"❌ Error saving diet recommendations: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def _save_fitness_recommendations(self):
+        """Save fitness recommendations from template engine to database"""
+        try:
+            if not self.current_session_id:
+                return
+                
+            # Read meal recommendations JSON file to get exercise data
+            meal_json_path = os.path.join(OUTPUT_FILES_DIR, "meal_recommendations.json")
+            if not os.path.exists(meal_json_path):
+                print(f"⚠️  Meal recommendations JSON not found: {meal_json_path}")
+                return
+            
+            with open(meal_json_path, 'r') as f:
+                meal_data = json.load(f)
+                
+            exercises_data = meal_data.get('exercises', {})
+            if not exercises_data:
+                print("⚠️  No exercise data found in meal recommendations")
+                return
+                
+            # Prepare fitness recommendation data
+            fitness_data = {
+                'fitness_strategy': exercises_data.get('fitness_strategy', 'Balanced strength and cardio training'),
+                'strength_days': exercises_data.get('strength_days', 3),
+                'cardio_days': exercises_data.get('cardio_days', 2),
+                'exercises': exercises_data
+            }
+            
+            # Insert fitness recommendation
+            fitness_rec_id = self.db_manager.insert_fitness_recommendation(self.current_session_id, fitness_data)
+            
+            # Extract and insert recommended exercises
+            exercises_list = []
+            
+            # Extract exercises from different categories
+            for category, exercise_ids in exercises_data.items():
+                if isinstance(exercise_ids, str) and exercise_ids:
+                    # Parse comma-separated exercise IDs
+                    for ex_id in exercise_ids.split(','):
+                        ex_id = ex_id.strip()
+                        if ex_id:
+                            exercises_list.append({
+                                'id': ex_id,
+                                'name': ex_id,  # Will be resolved by exercise loader
+                                'category': category
+                            })
+            
+            if exercises_list and fitness_rec_id:
+                self.db_manager.insert_recommended_exercises(fitness_rec_id, exercises_list)
+                print(f"✅ Saved {len(exercises_list)} fitness exercises to database")
+                
+        except Exception as e:
+            print(f"❌ Error saving fitness recommendations: {e}")
             import traceback
             traceback.print_exc()
     

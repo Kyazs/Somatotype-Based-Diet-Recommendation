@@ -74,7 +74,7 @@ class HistoryPage(ctk.CTkFrame):
         # Back button
         self.back_button = ctk.CTkButton(
             self.header_frame,
-            text="← Back",
+            text="← Menu",
             font=ctk.CTkFont(size=14),
             width=80,
             height=32,

@@ -18,7 +18,10 @@ PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.append(PROJECT_DIR)
 
 from src.utils.theme_manager import ThemeManager
+from src.utils.modal_manager import ModalManager
 from src.utils.database import DatabaseManager
+from src.utils.food_data_loader import get_food_loader
+from src.utils.exercise_data_loader import get_exercise_loader
 
 
 class MacronutrientChart(ctk.CTkFrame):
@@ -150,18 +153,20 @@ class MacronutrientChart(ctk.CTkFrame):
 class SomatotypeVisual(ctk.CTkFrame):
     """Custom visualization for the user's somatotype"""
     
-    def __init__(self, parent, ectomorph=33, mesomorph=33, endomorph=34):
+    def __init__(self, parent, ectomorph=33, mesomorph=33, endomorph=34, somatotype_class="Balanced"):
         super().__init__(parent, fg_color="transparent")
         
         # Save the values
         self.ectomorph = ectomorph
         self.mesomorph = mesomorph
         self.endomorph = endomorph
+        self.somatotype_class = somatotype_class
         
         # Configure grid
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=0)  # Title
-        self.grid_rowconfigure(1, weight=1)  # Content
+        self.grid_rowconfigure(1, weight=0)  # Classification
+        self.grid_rowconfigure(2, weight=1)  # Content
         
         # Chart title
         self.chart_title = ctk.CTkLabel(
@@ -170,11 +175,23 @@ class SomatotypeVisual(ctk.CTkFrame):
             font=ThemeManager.get_subtitle_font(),
             text_color=ThemeManager.PRIMARY_COLOR
         )
-        self.chart_title.grid(row=0, column=0, pady=(0, 15))
+        self.chart_title.grid(row=0, column=0, pady=(0, 10))
+        
+        # Somatotype classification display
+        self.classification_frame = ctk.CTkFrame(self, fg_color=ThemeManager.BG_COLOR, corner_radius=8)
+        self.classification_frame.grid(row=1, column=0, pady=(0, 15), sticky="ew")
+        
+        self.classification_label = ctk.CTkLabel(
+            self.classification_frame,
+            text=f"Classification: {self.somatotype_class}",
+            font=ThemeManager.get_label_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        self.classification_label.pack(pady=8)
         
         # Somatotype visualization
         self.soma_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.soma_frame.grid(row=1, column=0)
+        self.soma_frame.grid(row=2, column=0)
         self.soma_frame.grid_columnconfigure((0, 1, 2), weight=1)
         
         # Ectomorph
@@ -223,14 +240,14 @@ class SomatotypeVisual(ctk.CTkFrame):
         circle_frame.pack(pady=5)
         circle_frame.grid_propagate(False)
         
-        # Percentage label inside circle
-        percentage_label = ctk.CTkLabel(
+        # Percentage label inside circle (without % sign since these are scores, not percentages)
+        score_label = ctk.CTkLabel(
             circle_frame,
-            text=f"{percentage}%",
+            text=f"{percentage:.1f}",
             font=ThemeManager.get_title_font(),
             text_color=ThemeManager.PRIMARY_COLOR
         )
-        percentage_label.place(relx=0.5, rely=0.5, anchor="center")
+        score_label.place(relx=0.5, rely=0.5, anchor="center")
         
         # Title
         title_label = ctk.CTkLabel(
@@ -332,15 +349,52 @@ class FoodCard(ctk.CTkFrame):
         
         # Extract food information
         if isinstance(food_data, dict):
-            self.food_name = food_data.get('Food_Item', 'Unknown Food')
-            self.calories = food_data.get('Calories_kcal', 0)
-            self.protein = food_data.get('Protein_g', 0)
-            self.portion = food_data.get('Portion_Recommendation', 'N/A')
+            # If we have food name but missing other data, try to load from database
+            food_name = food_data.get('Food_Item', food_data.get('name', 'Unknown Food'))
+            if food_name and food_name != 'Unknown Food':
+                # Try to get complete food data from database
+                food_loader = get_food_loader()
+                complete_food_data = food_loader.get_food_info(food_name)
+                if complete_food_data:
+                    # Use complete data from database
+                    self.food_name = complete_food_data['Food_Item']
+                    self.calories = float(complete_food_data.get('Calories_kcal', 0))
+                    self.protein = float(complete_food_data.get('Protein_g', 0))
+                    self.portion = complete_food_data.get('Portion_Recommendation', 'N/A')
+                    # Store complete data for details dialog
+                    self.food_data = complete_food_data
+                else:
+                    # Use whatever data we have
+                    self.food_name = food_name
+                    self.calories = food_data.get('Calories_kcal', 0)
+                    self.protein = food_data.get('Protein_g', 0)
+                    self.portion = food_data.get('Portion_Recommendation', 'N/A')
+            else:
+                self.food_name = food_data.get('Food_Item', 'Unknown Food')
+                self.calories = food_data.get('Calories_kcal', 0)
+                self.protein = food_data.get('Protein_g', 0)
+                self.portion = food_data.get('Portion_Recommendation', 'N/A')
         else:
-            self.food_name = str(food_data)
-            self.calories = 0
-            self.protein = 0
-            self.portion = 'N/A'
+            # Handle string input by trying to find in database
+            if isinstance(food_data, str) and food_data.strip():
+                food_loader = get_food_loader()
+                complete_food_data = food_loader.get_food_info(food_data.strip())
+                if complete_food_data:
+                    self.food_name = complete_food_data['Food_Item']
+                    self.calories = float(complete_food_data.get('Calories_kcal', 0))
+                    self.protein = float(complete_food_data.get('Protein_g', 0))
+                    self.portion = complete_food_data.get('Portion_Recommendation', 'N/A')
+                    self.food_data = complete_food_data
+                else:
+                    self.food_name = str(food_data).strip()
+                    self.calories = 0
+                    self.protein = 0
+                    self.portion = 'N/A'
+            else:
+                self.food_name = str(food_data)
+                self.calories = 0
+                self.protein = 0
+                self.portion = 'N/A'
         
         # Food name (truncated if too long)
         display_name = self.food_name
@@ -479,85 +533,416 @@ class MealCategoryCard(ctk.CTkFrame):
             food_card.grid(row=row, column=col, padx=5, pady=5, sticky="ew")
 
 
-class MacronutrientDetailModal(ctk.CTkToplevel):
-    """Enhanced modal to show detailed food information with better error handling"""
+class MacronutrientDetailModal:
+    """Enhanced modal to show detailed food information with improved UI and centering"""
     
     def __init__(self, parent, food_data):
-        super().__init__(parent)
-        
+        self.parent = parent
         self.food_data = food_data
         
-        # Setup window safely
-        self.setup_window_safely()
-        
-        # Create content
-        self.create_content()
-        
-        # Center the window and show it
-        self.after(100, self.finalize_window)
-        
-    def setup_window_safely(self):
-        """Setup window with comprehensive error handling"""
         try:
-            # Basic window configuration
+            # Create modal using standard CTkToplevel
             food_name = "Food Details"
-            if isinstance(self.food_data, dict):
-                food_name = self.food_data.get('Food_Item', 'Food Details')
+            if isinstance(food_data, dict):
+                food_name = food_data.get('Food_Item', 'Food Details')
                 if len(food_name) > 40:
                     food_name = food_name[:37] + "..."
-                    
-            self.title(f"📊 {food_name}")
-            self.geometry("500x700")
-            self.resizable(False, False)
             
-            # Set window properties safely
-            self.transient(self.master)
+            self.modal = ctk.CTkToplevel(parent)
+            self.modal.title(f"🍽️ {food_name}")
+            self.modal.geometry("550x700")
+            self.modal.resizable(False, False)
             
-        except Exception as e:
-            print(f"Error setting up modal window: {e}")
+            # Set modal properties
+            self.modal.transient(parent)
+            self.modal.lift()
+            self.modal.focus_set()
             
-    def create_content(self):
-        """Create the modal content"""
-        try:
-            # Configure main grid
-            self.grid_columnconfigure(0, weight=1)
-            self.grid_rowconfigure(0, weight=1)
-            self.grid_rowconfigure(1, weight=0)
+            # Center the modal
+            self.modal.update_idletasks()
+            x = (self.modal.winfo_screenwidth() // 2) - (550 // 2)
+            y = (self.modal.winfo_screenheight() // 2) - (700 // 2)
+            self.modal.geometry(f"550x700+{x}+{y}")
             
-            # Main content with scrolling
-            self.content_frame = ctk.CTkScrollableFrame(
-                self,
-                fg_color="transparent",
-                corner_radius=0
-            )
-            self.content_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
-            self.content_frame.grid_columnconfigure(0, weight=1)
+            # Configure background
+            try:
+                self.modal.configure(fg_color=ThemeManager.get_bg_color())
+            except AttributeError:
+                self.modal.configure(fg_color=ThemeManager.BG_COLOR)
             
-            # Extract food data safely
-            if isinstance(self.food_data, dict):
-                self._create_detailed_view()
-            else:
-                self._create_simple_view()
-                
+            # Create content
+            self._create_content()
+            
             # Close button
-            self.close_button = ctk.CTkButton(
-                self,
+            close_button = ctk.CTkButton(
+                self.modal,
                 text="Close",
-                font=ThemeManager.get_label_font(),
-                command=self.destroy_safely,
-                width=100,
-                height=35
+                command=self.modal.destroy,
+                font=ThemeManager.get_button_font(),
+                fg_color=ThemeManager.PRIMARY_COLOR,
+                hover_color=ThemeManager.PRIMARY_HOVER,
+                corner_radius=12,
+                width=120,
+                height=40
             )
-            self.close_button.grid(row=1, column=0, pady=(0, 20))
+            close_button.pack(side="bottom", pady=10)
+            
+            # Set focus after modal is ready
+            self.modal.after(100, lambda: self.modal.grab_set() if self.modal.winfo_exists() else None)
             
         except Exception as e:
-            print(f"Error creating modal content: {e}")
-            self._create_error_view(str(e))
+            print(f"Error creating food modal: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _create_content(self):
+        """Create the modal content with improved styling"""
+        # Main content frame
+        main_frame = ctk.CTkFrame(self.modal, fg_color="transparent")
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        main_frame.grid_columnconfigure(0, weight=1)
+        
+        # Create scrollable content frame
+        try:
+            bg_color = ThemeManager.get_card_fg_color()
+        except AttributeError:
+            bg_color = ThemeManager.SECONDARY_COLOR
+            
+        self.content_frame = ctk.CTkScrollableFrame(
+            main_frame,
+            height=580,
+            fg_color=bg_color,
+            corner_radius=15
+        )
+        self.content_frame.pack(fill="both", expand=True)
+        self.content_frame.grid_columnconfigure(0, weight=1)
+        
+        # Extract and display food data
+        if isinstance(self.food_data, dict):
+            self._create_detailed_view()
+        else:
+            self._create_simple_view()
+    
+    def _create_detailed_view(self):
+        """Create detailed food information view"""
+        row = 0
+        
+        # Food name title
+        food_name = self.food_data.get('Food_Item', 'Unknown Food')
+        ModalManager.create_modal_title(
+            self.content_frame, 
+            food_name, 
+            icon="🥗", 
+            row=row
+        )
+        row += 1
+        
+        # Nutritional highlights section
+        self._create_nutrition_highlights(self.content_frame, row)
+        row += 1
+        
+        # Main macronutrients
+        self._create_macronutrients_section(self.content_frame, row)
+        row += 1
+        
+        # Vitamins and minerals
+        self._create_micronutrients_section(self.content_frame, row)
+        row += 1
+        
+        # Additional information
+        self._create_additional_info(self.content_frame, row)
+    
+    def _create_nutrition_highlights(self, parent, row):
+        """Create nutrition highlights with visual cards"""
+        highlights_frame = ctk.CTkFrame(
+            parent,
+            fg_color=ThemeManager.get_card_fg_color(),
+            corner_radius=15,
+            border_width=2,
+            border_color=ThemeManager.PRIMARY_COLOR + "40"
+        )
+        highlights_frame.grid(row=row, column=0, pady=(10, 20), padx=20, sticky="ew")
+        highlights_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        
+        # Title
+        highlights_title = ctk.CTkLabel(
+            highlights_frame,
+            text="🌟 Nutritional Highlights",
+            font=ThemeManager.get_subtitle_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        highlights_title.grid(row=0, column=0, columnspan=3, pady=(15, 10))
+        
+        # Get key nutritional values
+        calories = self.food_data.get('Calories', 0)
+        protein = self.food_data.get('Protein', 0)
+        carbs = self.food_data.get('Carbohydrates', 0)
+        
+        # Calories card
+        self._create_highlight_card(highlights_frame, "🔥", "Calories", f"{calories:.1f} kcal", 0, 1)
+        
+        # Protein card
+        self._create_highlight_card(highlights_frame, "💪", "Protein", f"{protein:.1f}g", 1, 1)
+        
+        # Carbs card
+        self._create_highlight_card(highlights_frame, "⚡", "Carbs", f"{carbs:.1f}g", 2, 1)
+    
+    def _create_highlight_card(self, parent, icon, title, value, column, row):
+        """Create a small highlight card for key nutrients"""
+        card = ctk.CTkFrame(
+            parent,
+            fg_color=ThemeManager.get_bg_color(),
+            corner_radius=10,
+            width=120,
+            height=80
+        )
+        card.grid(row=row, column=column, padx=10, pady=(0, 15), sticky="ew")
+        card.grid_propagate(False)
+        
+        # Icon and title
+        icon_label = ctk.CTkLabel(
+            card,
+            text=f"{icon}\n{title}",
+            font=ThemeManager.get_small_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        icon_label.grid(row=0, column=0, pady=(5, 0))
+        
+        # Value
+        value_label = ctk.CTkLabel(
+            card,
+            text=value,
+            font=ThemeManager.get_label_font(),
+            text_color=ThemeManager.GRAY_DARK
+        )
+        value_label.grid(row=1, column=0, pady=(0, 5))
+    
+    def _create_macronutrients_section(self, parent, row):
+        """Create macronutrients section with improved layout"""
+        # Section title
+        ModalManager.create_info_section(
+            parent, 
+            "Macronutrients (per 100g)", 
+            "", 
+            row, 
+            icon="🍽️",
+            wraplength=500
+        )
+        
+        # Macronutrients frame
+        macro_frame = ctk.CTkFrame(
+            parent,
+            fg_color=ThemeManager.get_card_fg_color() + "30",
+            corner_radius=10,
+            border_width=1,
+            border_color=ThemeManager.PRIMARY_COLOR + "20"
+        )
+        macro_frame.grid(row=row, column=0, pady=(30, 0), padx=20, sticky="ew")
+        macro_frame.grid_columnconfigure((0, 1), weight=1)
+        
+        # Macronutrient items
+        macro_items = [
+            ("🔥 Calories", self.food_data.get('Calories', 0), "kcal"),
+            ("💪 Protein", self.food_data.get('Protein', 0), "g"),
+            ("⚡ Carbohydrates", self.food_data.get('Carbohydrates', 0), "g"),
+            ("🧈 Fat", self.food_data.get('Fat', 0), "g"),
+            ("🌾 Fiber", self.food_data.get('Fiber', 0), "g"),
+            ("🍯 Sugar", self.food_data.get('Sugar', 0), "g"),
+        ]
+        
+        for i, (name, value, unit) in enumerate(macro_items):
+            row_pos = i // 2
+            col_pos = i % 2
+            
+            item_frame = ctk.CTkFrame(
+                macro_frame,
+                fg_color="transparent"
+            )
+            item_frame.grid(row=row_pos, column=col_pos, padx=10, pady=5, sticky="ew")
+            item_frame.grid_columnconfigure(1, weight=1)
+            
+            # Name
+            name_label = ctk.CTkLabel(
+                item_frame,
+                text=name,
+                font=ThemeManager.get_small_font(),
+                text_color=ThemeManager.GRAY_DARK,
+                anchor="w"
+            )
+            name_label.grid(row=0, column=0, sticky="w")
+            
+            # Value
+            value_text = f"{value:.1f} {unit}" if isinstance(value, (int, float)) else f"{value} {unit}"
+            value_label = ctk.CTkLabel(
+                item_frame,
+                text=value_text,
+                font=ThemeManager.get_label_font(),
+                text_color=ThemeManager.PRIMARY_COLOR,
+                anchor="e"
+            )
+            value_label.grid(row=0, column=1, sticky="e", padx=(10, 0))
+    
+    def _create_micronutrients_section(self, parent, row):
+        """Create vitamins and minerals section"""
+        # Get micronutrients data
+        micronutrients = []
+        
+        # Common micronutrients to display
+        micro_keys = [
+            ('Vitamin_A', '🥕 Vitamin A', 'IU'),
+            ('Vitamin_C', '🍊 Vitamin C', 'mg'),
+            ('Vitamin_D', '☀️ Vitamin D', 'IU'),
+            ('Vitamin_E', '🌰 Vitamin E', 'mg'),
+            ('Vitamin_K', '🥬 Vitamin K', 'μg'),
+            ('Calcium', '🦴 Calcium', 'mg'),
+            ('Iron', '⚡ Iron', 'mg'),
+            ('Magnesium', '🌿 Magnesium', 'mg'),
+            ('Potassium', '🍌 Potassium', 'mg'),
+            ('Sodium', '🧂 Sodium', 'mg'),
+            ('Zinc', '⚗️ Zinc', 'mg'),
+        ]
+        
+        # Filter available micronutrients
+        for key, display_name, unit in micro_keys:
+            if key in self.food_data and self.food_data[key]:
+                value = self.food_data[key]
+                if isinstance(value, (int, float)) and value > 0:
+                    micronutrients.append((display_name, value, unit))
+        
+        if micronutrients:
+            # Section title
+            ModalManager.create_info_section(
+                parent, 
+                "Vitamins & Minerals", 
+                "", 
+                row, 
+                icon="💎",
+                wraplength=500
+            )
+            
+            # Micronutrients frame
+            micro_frame = ctk.CTkFrame(
+                parent,
+                fg_color=ThemeManager.get_card_fg_color() + "30",
+                corner_radius=10,
+                border_width=1,
+                border_color=ThemeManager.PRIMARY_COLOR + "20"
+            )
+            micro_frame.grid(row=row, column=0, pady=(30, 0), padx=20, sticky="ew")
+            micro_frame.grid_columnconfigure((0, 1), weight=1)
+            
+            # Display micronutrients
+            for i, (name, value, unit) in enumerate(micronutrients[:10]):  # Limit to 10 items
+                row_pos = i // 2
+                col_pos = i % 2
+                
+                item_frame = ctk.CTkFrame(
+                    micro_frame,
+                    fg_color="transparent"
+                )
+                item_frame.grid(row=row_pos, column=col_pos, padx=10, pady=5, sticky="ew")
+                item_frame.grid_columnconfigure(1, weight=1)
+                
+                # Name
+                name_label = ctk.CTkLabel(
+                    item_frame,
+                    text=name,
+                    font=ThemeManager.get_small_font(),
+                    text_color=ThemeManager.GRAY_DARK,
+                    anchor="w"
+                )
+                name_label.grid(row=0, column=0, sticky="w")
+                
+                # Value
+                value_text = f"{value:.1f} {unit}" if isinstance(value, (int, float)) else f"{value} {unit}"
+                value_label = ctk.CTkLabel(
+                    item_frame,
+                    text=value_text,
+                    font=ThemeManager.get_label_font(),
+                    text_color=ThemeManager.PRIMARY_COLOR,
+                    anchor="e"
+                )
+                value_label.grid(row=0, column=1, sticky="e", padx=(10, 0))
+    
+    def _create_additional_info(self, parent, row):
+        """Create additional information section"""
+        # Additional info that might be available
+        additional_items = []
+        
+        if 'Food_Group' in self.food_data:
+            additional_items.append(("🏷️ Food Group", self.food_data['Food_Group']))
+        
+        if 'Serving_Size' in self.food_data:
+            additional_items.append(("📏 Serving Size", self.food_data['Serving_Size']))
+            
+        if additional_items:
+            # Section title
+            ModalManager.create_info_section(
+                parent, 
+                "Additional Information", 
+                "", 
+                row, 
+                icon="ℹ️",
+                wraplength=500
+            )
+            
+            # Additional info frame
+            info_frame = ctk.CTkFrame(
+                parent,
+                fg_color=ThemeManager.get_card_fg_color() + "30",
+                corner_radius=10,
+                border_width=1,
+                border_color=ThemeManager.PRIMARY_COLOR + "20"
+            )
+            info_frame.grid(row=row, column=0, pady=(30, 20), padx=20, sticky="ew")
+            info_frame.grid_columnconfigure(0, weight=1)
+            
+            for i, (name, value) in enumerate(additional_items):
+                item_label = ctk.CTkLabel(
+                    info_frame,
+                    text=f"{name}: {value}",
+                    font=ThemeManager.get_small_font(),
+                    text_color=ThemeManager.GRAY_DARK,
+                    anchor="w"
+                )
+                item_label.grid(row=i, column=0, padx=15, pady=8, sticky="w")
+    
+    def _create_simple_view(self):
+        """Create simple view for non-dict food data"""
+        ModalManager.create_modal_title(
+            self.content_frame, 
+            "Food Information", 
+            icon="🍽️", 
+            row=0
+        )
+        
+        # Simple content
+        content_text = str(self.food_data) if self.food_data else "No food information available"
+        content_label = ctk.CTkLabel(
+            self.content_frame,
+            text=content_text,
+            font=ThemeManager.get_small_font(),
+            text_color=ThemeManager.GRAY_DARK,
+            wraplength=500,
+            anchor="w",
+            justify="left"
+        )
+        content_label.grid(row=1, column=0, padx=20, pady=20, sticky="ew")
             
     def _create_detailed_view(self):
         """Create detailed food information view"""
-        # Food name header
+        # Food name header - try to get complete data if needed
         food_name = self.food_data.get('Food_Item', 'Unknown Food')
+        
+        # If we still have Unknown Food, try to load from database
+        if food_name == 'Unknown Food' and isinstance(self.food_data, dict):
+            if 'name' in self.food_data:
+                food_loader = get_food_loader()
+                complete_data = food_loader.get_food_info(self.food_data['name'])
+                if complete_data:
+                    self.food_data = complete_data
+                    food_name = complete_data['Food_Item']
+        
         self.name_header = ctk.CTkLabel(
             self.content_frame,
             text=food_name,
@@ -752,6 +1137,988 @@ class MacronutrientDetailModal(ctk.CTkToplevel):
             print(f"Error destroying modal: {e}")
 
 
+class ExerciseRecommendations(ctk.CTkFrame):
+    """Component showing exercise recommendations based on user preference"""
+    
+    def __init__(self, parent):
+        super().__init__(parent, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
+        
+        # Configure grid
+        self.grid_columnconfigure(0, weight=1)
+        
+        # Title
+        self.title_label = ctk.CTkLabel(
+            self,
+            text="💪 Your Exercise Plan",
+            font=ThemeManager.get_title_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        self.title_label.grid(row=0, column=0, pady=(20, 15), padx=20)
+        
+        # Content frame
+        self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.content_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 20))
+        self.content_frame.grid_columnconfigure(0, weight=1)
+        
+        # Default placeholder
+        self.placeholder_label = ctk.CTkLabel(
+            self.content_frame,
+            text="Loading exercise recommendations...",
+            font=ThemeManager.get_label_font(),
+            text_color=ThemeManager.GRAY_MEDIUM
+        )
+        self.placeholder_label.grid(row=0, column=0, pady=20)
+    
+    def update_exercise_recommendations(self, exercise_data):
+        """Update exercise recommendations based on data"""
+        try:
+            # Clear existing content
+            for widget in self.content_frame.winfo_children():
+                widget.destroy()
+            
+            if not exercise_data:
+                self.placeholder_label = ctk.CTkLabel(
+                    self.content_frame,
+                    text="No exercise recommendations available",
+                    font=ThemeManager.get_label_font(),
+                    text_color=ThemeManager.GRAY_MEDIUM
+                )
+                self.placeholder_label.grid(row=0, column=0, pady=20)
+                return
+            
+            # Exercise type and complexity info
+            exercise_type = exercise_data.get('exercise_type', 'bodyweight')
+            exercise_complexity = exercise_data.get('exercise_complexity', 'beginner')
+            workout_description = exercise_data.get('workout_description', f'{exercise_type} {exercise_complexity} workout')
+            
+            # Header section
+            header_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
+            header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 15))
+            header_frame.grid_columnconfigure(1, weight=1)
+            
+            # Exercise type badge
+            type_badge = ctk.CTkLabel(
+                header_frame,
+                text=f"🏋️ {exercise_type.title()}",
+                font=ThemeManager.get_label_font(),
+                fg_color=ThemeManager.PRIMARY_COLOR,
+                corner_radius=15,
+                width=100,
+                height=30
+            )
+            type_badge.grid(row=0, column=0, padx=(0, 10))
+            
+            # Complexity badge
+            complexity_colors = {
+                'beginner': ThemeManager.SUCCESS_COLOR,
+                'intermediate': ThemeManager.WARNING_COLOR,
+                'advanced': '#ff6b35'
+            }
+            complexity_badge = ctk.CTkLabel(
+                header_frame,
+                text=f"📊 {exercise_complexity.title()}",
+                font=ThemeManager.get_label_font(),
+                fg_color=complexity_colors.get(exercise_complexity, ThemeManager.GRAY_MEDIUM),
+                corner_radius=15,
+                width=120,
+                height=30
+            )
+            complexity_badge.grid(row=0, column=1, sticky="w")
+            
+            # Workout description
+            desc_label = ctk.CTkLabel(
+                self.content_frame,
+                text=workout_description,
+                font=ThemeManager.get_small_font(),
+                text_color=ThemeManager.GRAY_DARK,
+                wraplength=400
+            )
+            desc_label.grid(row=1, column=0, pady=(0, 15))
+            
+            # Schedule info
+            schedule_frame = ctk.CTkFrame(self.content_frame, fg_color=ThemeManager.GRAY_LIGHT, corner_radius=8)
+            schedule_frame.grid(row=2, column=0, sticky="ew", pady=(0, 15))
+            schedule_frame.grid_columnconfigure((0, 1), weight=1)
+            
+            strength_days = exercise_data.get('strength_days', 0)
+            cardio_days = exercise_data.get('cardio_days', 0)
+            
+            strength_label = ctk.CTkLabel(
+                schedule_frame,
+                text=f"💪 Strength: {strength_days} days/week",
+                font=ThemeManager.get_small_font(),
+                text_color=ThemeManager.GRAY_DARK
+            )
+            strength_label.grid(row=0, column=0, padx=10, pady=8)
+            
+            cardio_label = ctk.CTkLabel(
+                schedule_frame,
+                text=f"❤️ Cardio: {cardio_days} days/week",
+                font=ThemeManager.get_small_font(),
+                text_color=ThemeManager.GRAY_DARK
+            )
+            cardio_label.grid(row=0, column=1, padx=10, pady=8)
+            
+            # Exercise lists
+            if exercise_type == 'gym':
+                self._create_gym_exercises(exercise_data)
+            else:
+                self._create_bodyweight_exercises(exercise_data)
+                
+        except Exception as e:
+            print(f"Error updating exercise recommendations: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _create_gym_exercises(self, exercise_data):
+        """Create gym exercise display with push/pull/legs split"""
+        exercises_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
+        exercises_frame.grid(row=3, column=0, sticky="ew")
+        exercises_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        
+        # Push exercises
+        push_exercises = exercise_data.get('push_exercises', [])
+        if push_exercises:
+            self._create_exercise_category(exercises_frame, "🔥 Push", push_exercises[:4], 0)
+        
+        # Pull exercises  
+        pull_exercises = exercise_data.get('pull_exercises', [])
+        if pull_exercises:
+            self._create_exercise_category(exercises_frame, "⬇️ Pull", pull_exercises[:4], 1)
+        
+        # Leg exercises
+        legs_exercises = exercise_data.get('legs_exercises', [])
+        if legs_exercises:
+            self._create_exercise_category(exercises_frame, "🦵 Legs", legs_exercises[:4], 2)
+    
+    def _create_bodyweight_exercises(self, exercise_data):
+        """Create bodyweight exercise display"""
+        exercises_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
+        exercises_frame.grid(row=3, column=0, sticky="ew")
+        
+        bodyweight_exercises = exercise_data.get('bodyweight_exercises', [])
+        if bodyweight_exercises:
+            self._create_exercise_category(exercises_frame, "🏃 Bodyweight", bodyweight_exercises[:8], 0, single_column=True)
+    
+    def _create_exercise_category(self, parent, title, exercises, column, single_column=False):
+        """Create an exercise category section"""
+        category_frame = ctk.CTkFrame(parent, fg_color=ThemeManager.BG_COLOR, corner_radius=8)
+        if single_column:
+            category_frame.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+        else:
+            category_frame.grid(row=0, column=column, sticky="nsew", padx=5, pady=5)
+        category_frame.grid_columnconfigure(0, weight=1)
+        
+        # Category title
+        title_label = ctk.CTkLabel(
+            category_frame,
+            text=title,
+            font=ThemeManager.get_subtitle_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        title_label.grid(row=0, column=0, pady=(10, 5))
+        
+        # Exercise list
+        for i, exercise in enumerate(exercises[:6]):  # Max 6 exercises per category
+            if exercise and str(exercise).strip():  # Only show non-empty exercises
+                exercise_str = str(exercise).strip()
+                
+                # Try to get exercise name from database if this looks like an ID
+                exercise_loader = get_exercise_loader()
+                exercise_info = exercise_loader.get_exercise_info(exercise_str)
+                
+                if exercise_info:
+                    # Found exercise in database, use proper name
+                    exercise_name = exercise_info['name'].title()
+                    exercise_data = exercise_info
+                else:
+                    # Not found in database or already a name, use as is
+                    exercise_name = exercise_str.title()
+                    exercise_data = {'name': exercise_str, 'exerciseId': exercise_str}
+                
+                # Create clickable exercise button
+                exercise_button = ctk.CTkButton(
+                    category_frame,
+                    text=f"• {exercise_name}",
+                    font=ThemeManager.get_small_font(),
+                    text_color=ThemeManager.GRAY_DARK,
+                    fg_color="transparent",
+                    hover_color=ThemeManager.PRIMARY_COLOR,
+                    anchor="w",
+                    height=25,
+                    command=lambda ex=exercise_data: self._show_exercise_details(ex)
+                )
+                exercise_button.grid(row=i+1, column=0, sticky="ew", padx=10, pady=2)
+        
+        # Padding at bottom
+        ctk.CTkLabel(category_frame, text="").grid(row=10, column=0, pady=(0, 5))
+    
+    def _show_exercise_details(self, exercise_data):
+        """Show detailed exercise information in a modal window"""
+        try:
+            ExerciseDetailModal(self, exercise_data)
+        except Exception as e:
+            print(f"Error showing exercise details: {e}")
+
+
+class ExerciseDetailModal:
+    """Enhanced modal dialog showing detailed exercise information with GIF demonstration"""
+    
+    def __init__(self, parent, exercise_data):
+        self.parent = parent
+        self.exercise_data = exercise_data
+        self.gif_frames = []
+        self.current_frame = 0
+        self.gif_label = None
+        self.animation_job = None
+        
+        try:
+            # Create modal using standard CTkToplevel to avoid issues
+            exercise_name = self.exercise_data.get('name', 'Exercise Details').title()
+            self.modal = ctk.CTkToplevel(parent)
+            self.modal.title(f"💪 {exercise_name}")
+            self.modal.geometry("650x750")
+            self.modal.resizable(False, False)
+            
+            # Set modal properties
+            self.modal.transient(parent)
+            self.modal.lift()
+            self.modal.focus_set()
+            
+            # Center the modal
+            self.modal.update_idletasks()
+            x = (self.modal.winfo_screenwidth() // 2) - (650 // 2)
+            y = (self.modal.winfo_screenheight() // 2) - (750 // 2)
+            self.modal.geometry(f"650x750+{x}+{y}")
+            
+            # Configure background with fallback
+            try:
+                self.modal.configure(fg_color=ThemeManager.get_bg_color())
+            except AttributeError:
+                self.modal.configure(fg_color=ThemeManager.BG_COLOR)
+            
+            # Handle window close event
+            self.modal.protocol("WM_DELETE_WINDOW", self._close_modal)
+            
+            # Create content
+            self._create_content()
+            
+            # Set focus after modal is ready
+            self.modal.after(100, lambda: self.modal.grab_set() if self.modal.winfo_exists() else None)
+            
+        except Exception as e:
+            print(f"Error creating exercise modal: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _create_content(self):
+        """Create the modal content with improved styling"""
+        # Main content frame
+        main_frame = ctk.CTkFrame(self.modal, fg_color="transparent")
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        main_frame.grid_columnconfigure(0, weight=1)
+        
+        # Create scrollable content frame
+        try:
+            bg_color = ThemeManager.get_card_fg_color()
+        except AttributeError:
+            bg_color = ThemeManager.SECONDARY_COLOR
+            
+        self.content_frame = ctk.CTkScrollableFrame(
+            main_frame,
+            height=650,
+            fg_color=bg_color,
+            corner_radius=15
+        )
+        self.content_frame.pack(fill="both", expand=True)
+        self.content_frame.grid_columnconfigure(0, weight=1)
+        
+        row = 0
+        
+        # Exercise title
+        exercise_name = self.exercise_data.get('name', 'Unknown Exercise').title()
+        title_label = ctk.CTkLabel(
+            self.content_frame,
+            text=f"🏋️ {exercise_name}",
+            font=ThemeManager.get_title_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        title_label.grid(row=row, column=0, pady=(20, 15))
+        row += 1
+        
+        # Exercise GIF section
+        self._create_gif_section(self.content_frame, row)
+        row += 1
+        
+        # Exercise information sections
+        self._create_info_sections(self.content_frame, row)
+        
+        # Close button frame for proper positioning
+        button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        button_frame.pack(fill="x", pady=(0, 0))
+        
+        close_button = ctk.CTkButton(
+            button_frame,
+            text="Close",
+            command=self._close_modal,
+            font=ThemeManager.get_button_font(),
+            fg_color=ThemeManager.PRIMARY_COLOR,
+            hover_color=ThemeManager.PRIMARY_HOVER,
+            corner_radius=12,
+            width=120,
+            height=40
+        )
+        close_button.pack(anchor="center")
+    
+    def _create_info_sections(self, parent, row):
+        """Create exercise information sections"""
+        # Target muscles info
+        target_muscles = self.exercise_data.get('targetMuscles', [])
+        if target_muscles:
+            muscles_text = ", ".join([muscle.title() for muscle in target_muscles])
+            self._create_info_card(parent, "🎯 Target Muscles", muscles_text, row)
+            row += 1
+        
+        # Body parts info
+        body_parts = self.exercise_data.get('bodyParts', [])
+        if body_parts:
+            body_parts_text = ", ".join([part.title() for part in body_parts])
+            self._create_info_card(parent, "💪 Body Parts", body_parts_text, row)
+            row += 1
+        
+        # Equipment info
+        equipments = self.exercise_data.get('equipments', [])
+        if equipments:
+            equipment_text = ", ".join([eq.title() for eq in equipments])
+            self._create_info_card(parent, "🛠️ Equipment", equipment_text, row)
+            row += 1
+        
+        # Secondary muscles
+        secondary_muscles = self.exercise_data.get('secondaryMuscles', [])
+        if secondary_muscles:
+            secondary_text = ", ".join([muscle.title() for muscle in secondary_muscles])
+            self._create_info_card(parent, "🔄 Secondary Muscles", secondary_text, row)
+            row += 1
+        
+        # Instructions
+        instructions = self.exercise_data.get('instructions', [])
+        if instructions:
+            self._create_instructions_card(parent, instructions, row)
+    
+    def _create_info_card(self, parent, title, content, row):
+        """Create an information card"""
+        try:
+            card_color = ThemeManager.get_card_fg_color()
+        except AttributeError:
+            card_color = "white"
+            
+        card_frame = ctk.CTkFrame(
+            parent,
+            fg_color=card_color,
+            corner_radius=15,
+            border_width=2,
+            border_color=ThemeManager.GRAY_LIGHT
+        )
+        card_frame.grid(row=row, column=0, pady=(0, 15), padx=20, sticky="ew")
+        card_frame.grid_columnconfigure(0, weight=1)
+        
+        # Title
+        title_label = ctk.CTkLabel(
+            card_frame,
+            text=title,
+            font=ThemeManager.get_subtitle_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        title_label.grid(row=0, column=0, pady=(15, 10))
+        
+        # Content
+        content_label = ctk.CTkLabel(
+            card_frame,
+            text=content,
+            font=ThemeManager.get_small_font(),
+            text_color=ThemeManager.GRAY_DARK,
+            wraplength=500,  # Reduced from 550 to prevent overflow
+            justify="left"
+        )
+        content_label.grid(row=1, column=0, padx=20, pady=(0, 15), sticky="ew")
+    
+    def _create_instructions_card(self, parent, instructions, row):
+        """Create a special card for step-by-step instructions with improved formatting"""
+        try:
+            card_color = ThemeManager.get_card_fg_color()
+        except AttributeError:
+            card_color = "white"
+            
+        # Main instructions card
+        instructions_frame = ctk.CTkFrame(
+            parent,
+            fg_color=card_color,
+            corner_radius=15,
+            border_width=2,
+            border_color=ThemeManager.GRAY_LIGHT
+        )
+        instructions_frame.grid(row=row, column=0, pady=(0, 15), padx=20, sticky="ew")
+        instructions_frame.grid_columnconfigure(0, weight=1)
+        
+        # Title
+        title_label = ctk.CTkLabel(
+            instructions_frame,
+            text="📋 Step-by-Step Instructions",
+            font=ThemeManager.get_subtitle_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        title_label.grid(row=0, column=0, pady=(15, 10))
+        
+        # Instructions container with scrollable area if needed
+        instructions_container = ctk.CTkFrame(
+            instructions_frame,
+            fg_color="transparent"
+        )
+        instructions_container.grid(row=1, column=0, padx=20, pady=(0, 15), sticky="ew")
+        instructions_container.grid_columnconfigure(0, weight=1)
+        
+        # Add each instruction as a separate step
+        for i, instruction in enumerate(instructions, 1):
+            # Clean up instruction text
+            clean_instruction = instruction.replace(f"Step:{i}", "").strip()
+            if not clean_instruction:
+                continue
+                
+            # Step frame for each instruction
+            step_frame = ctk.CTkFrame(
+                instructions_container,
+                fg_color=ThemeManager.SECONDARY_COLOR,
+                corner_radius=8,
+                border_width=1,
+                border_color=ThemeManager.GRAY_LIGHT
+            )
+            step_frame.grid(row=i-1, column=0, pady=(0, 8), sticky="ew")
+            step_frame.grid_columnconfigure(1, weight=1)
+            
+            # Step number
+            step_number = ctk.CTkLabel(
+                step_frame,
+                text=str(i),
+                font=ThemeManager.get_label_font(),
+                text_color="white",
+                fg_color=ThemeManager.PRIMARY_COLOR,
+                corner_radius=15,
+                width=30,
+                height=30
+            )
+            step_number.grid(row=0, column=0, padx=(15, 10), pady=15, sticky="n")
+            
+            # Step text with proper wrapping
+            step_text = ctk.CTkLabel(
+                step_frame,
+                text=clean_instruction,
+                font=ThemeManager.get_small_font(),
+                text_color=ThemeManager.GRAY_DARK,
+                wraplength=480,  # Adjust for step number space
+                justify="left",
+                anchor="w"
+            )
+            step_text.grid(row=0, column=1, padx=(0, 15), pady=15, sticky="ew")
+    
+    def _create_gif_section(self, parent, row):
+        """Create the GIF display section with improved styling"""
+        # GIF container frame
+        gif_frame = ctk.CTkFrame(
+            parent,
+            fg_color=ThemeManager.get_card_fg_color(),
+            corner_radius=15,
+            border_width=3,
+            border_color=ThemeManager.PRIMARY_COLOR,
+            height=300
+        )
+        gif_frame.grid(row=row, column=0, pady=(10, 20), padx=20, sticky="ew")
+        gif_frame.grid_columnconfigure(0, weight=1)
+        gif_frame.grid_propagate(False)
+        
+        # GIF title
+        gif_title = ctk.CTkLabel(
+            gif_frame,
+            text="🎬 Exercise Demonstration",
+            font=ThemeManager.get_subtitle_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        gif_title.grid(row=0, column=0, pady=(15, 10))
+        
+        # GIF display label with improved styling
+        self.gif_label = ctk.CTkLabel(
+            gif_frame,
+            text="Loading animation...",
+            font=ThemeManager.get_small_font(),
+            text_color=ThemeManager.GRAY_DARK,
+            width=400,
+            height=220,
+            corner_radius=10
+        )
+        self.gif_label.grid(row=1, column=0, pady=(5, 15), padx=15)
+        
+        # Load and start GIF animation
+        self._load_gif()
+    
+    def _create_instructions_section(self, parent, row):
+        """Create the instructions section with improved formatting"""
+        instructions = self.exercise_data.get('instructions', [])
+        if not instructions:
+            return
+            
+        # Instructions title
+        instructions_title = ctk.CTkLabel(
+            parent,
+            text="📝 Instructions",
+            font=ThemeManager.get_subtitle_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        instructions_title.grid(row=row, column=0, pady=(20, 10), sticky="w", padx=20)
+        
+        # Instructions container frame
+        instructions_frame = ctk.CTkFrame(
+            parent,
+            fg_color="transparent",  # Use transparent instead of invalid color
+            corner_radius=10,
+            border_width=1,
+            border_color=ThemeManager.GRAY_LIGHT
+        )
+        instructions_frame.grid(row=row, column=0, pady=(30, 0), padx=20, sticky="ew")
+        instructions_frame.grid_columnconfigure(0, weight=1)
+        
+        # Add each instruction with improved styling
+        for i, instruction in enumerate(instructions, 1):
+            # Clean up instruction text
+            instruction_text = instruction.replace(f"Step:{i} ", "").strip()
+            
+            # Create instruction frame for better visual separation
+            step_frame = ctk.CTkFrame(
+                instructions_frame,
+                fg_color="transparent",
+                corner_radius=5
+            )
+            step_frame.grid(row=i-1, column=0, pady=5, padx=15, sticky="ew")
+            step_frame.grid_columnconfigure(1, weight=1)
+            
+            # Step number
+            step_number = ctk.CTkLabel(
+                step_frame,
+                text=f"{i}.",
+                font=ThemeManager.get_label_font(),
+                text_color=ThemeManager.PRIMARY_COLOR,
+                width=30
+            )
+            step_number.grid(row=0, column=0, sticky="nw", padx=(5, 10))
+            
+            # Step text
+            step_text = ctk.CTkLabel(
+                step_frame,
+                text=instruction_text,
+                font=ThemeManager.get_small_font(),
+                text_color=ThemeManager.GRAY_DARK,
+                wraplength=500,
+                anchor="w",
+                justify="left"
+            )
+            step_text.grid(row=0, column=1, sticky="ew", pady=5)
+    
+    def _load_gif(self):
+        """Load and start GIF animation with improved error handling"""
+        try:
+            exercise_id = self.exercise_data.get('exerciseId', '')
+            if not exercise_id:
+                self._show_gif_placeholder("No exercise ID available")
+                return
+            
+            # Construct GIF path
+            gif_path = os.path.join(
+                PROJECT_DIR,
+                "data", "datasets", "fitness", "media", 
+                f"{exercise_id}.gif"
+            )
+            
+            if not os.path.exists(gif_path):
+                self._show_gif_placeholder(f"Animation not available")
+                return
+            
+            # Load GIF frames
+            gif_image = Image.open(gif_path)
+            self.gif_frames = []
+            
+            try:
+                while True:
+                    # Resize frame to fit display area (max 400x220)
+                    frame = gif_image.copy()
+                    frame.thumbnail((400, 220), Image.Resampling.LANCZOS)
+                    
+                    # Convert to PhotoImage
+                    photo = ImageTk.PhotoImage(frame)
+                    self.gif_frames.append(photo)
+                    
+                    gif_image.seek(gif_image.tell() + 1)
+            except EOFError:
+                pass  # End of frames
+            
+            if self.gif_frames:
+                self.current_frame = 0
+                self._animate_gif()
+            else:
+                self._show_gif_placeholder("Failed to load animation")
+                
+        except Exception as e:
+            self._show_gif_placeholder(f"Animation unavailable")
+            print(f"GIF loading error: {e}")
+    
+    def _animate_gif(self):
+        """Animate the GIF by cycling through frames"""
+        if self.gif_frames and self.gif_label and self.gif_label.winfo_exists():
+            try:
+                # Update the image
+                self.gif_label.configure(image=self.gif_frames[self.current_frame], text="")
+                
+                # Move to next frame
+                self.current_frame = (self.current_frame + 1) % len(self.gif_frames)
+                
+                # Schedule next frame (120ms delay for smooth animation)
+                self.animation_job = self.modal.after(120, self._animate_gif)
+                
+            except Exception as e:
+                self._show_gif_placeholder(f"Animation error")
+                print(f"Animation error: {e}")
+    
+    def _show_gif_placeholder(self, message):
+        """Show placeholder when GIF cannot be loaded"""
+        if self.gif_label and self.gif_label.winfo_exists():
+            self.gif_label.configure(
+                text=f"🎬\n\n{message}\n\nExercise demonstration\nnot available",
+                image="",
+                font=ThemeManager.get_small_font(),
+                text_color=ThemeManager.GRAY_DARK
+            )
+    
+    def _close_modal(self):
+        """Clean up and close the modal"""
+        # Stop animation
+        if self.animation_job:
+            self.modal.after_cancel(self.animation_job)
+            self.animation_job = None
+        
+        # Clear references to prevent memory leaks
+        self.gif_frames = []
+        self.gif_label = None
+        
+        # Destroy window
+        self.modal.destroy()
+
+
+class DietPrinciples(ctk.CTkFrame):
+    """Component showing diet principles and nutritional guidelines"""
+    
+    def __init__(self, parent):
+        super().__init__(parent, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
+        
+        # Configure grid
+        self.grid_columnconfigure(0, weight=1)
+        
+        # Title
+        self.title_label = ctk.CTkLabel(
+            self,
+            text="📋 Diet Principles",
+            font=ThemeManager.get_title_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        self.title_label.grid(row=0, column=0, pady=(20, 15), padx=20)
+        
+        # Content frame
+        self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.content_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 20))
+        self.content_frame.grid_columnconfigure(0, weight=1)
+        
+        # Default placeholder
+        self.placeholder_label = ctk.CTkLabel(
+            self.content_frame,
+            text="Loading diet principles...",
+            font=ThemeManager.get_label_font(),
+            text_color=ThemeManager.GRAY_MEDIUM
+        )
+        self.placeholder_label.grid(row=0, column=0, pady=20)
+    
+    def update_principles(self, principles_data):
+        """Update diet principles display"""
+        try:
+            # Clear existing content
+            for widget in self.content_frame.winfo_children():
+                widget.destroy()
+            
+            if not principles_data:
+                self.placeholder_label = ctk.CTkLabel(
+                    self.content_frame,
+                    text="No diet principles available",
+                    font=ThemeManager.get_label_font(),
+                    text_color=ThemeManager.GRAY_MEDIUM
+                )
+                self.placeholder_label.grid(row=0, column=0, pady=20)
+                return
+            
+            # Display principles as numbered list
+            for i, principle in enumerate(principles_data, 1):
+                principle_frame = ctk.CTkFrame(
+                    self.content_frame, 
+                    fg_color=ThemeManager.BG_COLOR, 
+                    corner_radius=8
+                )
+                principle_frame.grid(row=i-1, column=0, sticky="ew", pady=5, padx=5)
+                principle_frame.grid_columnconfigure(1, weight=1)
+                
+                # Number badge
+                number_label = ctk.CTkLabel(
+                    principle_frame,
+                    text=str(i),
+                    font=ThemeManager.get_label_font(),
+                    fg_color=ThemeManager.PRIMARY_COLOR,
+                    corner_radius=15,
+                    width=30,
+                    height=30
+                )
+                number_label.grid(row=0, column=0, padx=10, pady=10)
+                
+                # Principle text
+                principle_label = ctk.CTkLabel(
+                    principle_frame,
+                    text=principle,
+                    font=ThemeManager.get_label_font(),
+                    text_color=ThemeManager.GRAY_DARK,
+                    wraplength=500,
+                    justify="left",
+                    anchor="w"
+                )
+                principle_label.grid(row=0, column=1, sticky="ew", padx=(0, 15), pady=10)
+                
+        except Exception as e:
+            print(f"Error updating diet principles: {e}")
+
+
+class FitnessStrategy(ctk.CTkFrame):
+    """Component showing fitness strategy and training split with graph visualization"""
+    
+    def __init__(self, parent):
+        super().__init__(parent, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
+        
+        # Configure grid
+        self.grid_columnconfigure(0, weight=1)
+        
+        # Title
+        self.title_label = ctk.CTkLabel(
+            self,
+            text="💪 Fitness Strategy",
+            font=ThemeManager.get_title_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        self.title_label.grid(row=0, column=0, pady=(20, 15), padx=20)
+        
+        # Content frame
+        self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.content_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 20))
+        self.content_frame.grid_columnconfigure(0, weight=1)
+        
+        # Default placeholder
+        self.placeholder_label = ctk.CTkLabel(
+            self.content_frame,
+            text="Loading fitness strategy...",
+            font=ThemeManager.get_label_font(),
+            text_color=ThemeManager.GRAY_MEDIUM
+        )
+        self.placeholder_label.grid(row=0, column=0, pady=20)
+    
+    def update_strategy(self, strategy_data):
+        """Update fitness strategy display"""
+        try:
+            # Clear existing content
+            for widget in self.content_frame.winfo_children():
+                widget.destroy()
+            
+            if not strategy_data:
+                self.placeholder_label = ctk.CTkLabel(
+                    self.content_frame,
+                    text="No fitness strategy available",
+                    font=ThemeManager.get_label_font(),
+                    text_color=ThemeManager.GRAY_MEDIUM
+                )
+                self.placeholder_label.grid(row=0, column=0, pady=20)
+                return
+            
+            # Strategy description
+            strategy_text = strategy_data.get('fitness_strategy', 'No strategy description available')
+            strategy_label = ctk.CTkLabel(
+                self.content_frame,
+                text=strategy_text,
+                font=ThemeManager.get_label_font(),
+                text_color=ThemeManager.GRAY_DARK,
+                wraplength=500,
+                justify="center"
+            )
+            strategy_label.grid(row=0, column=0, pady=(0, 20), sticky="ew")
+            
+            # Training split graph
+            strength_days = strategy_data.get('strength_days', 0)
+            cardio_days = strategy_data.get('cardio_days', 0)
+            
+            if strength_days > 0 or cardio_days > 0:
+                self._create_training_split_graph(strength_days, cardio_days)
+                
+        except Exception as e:
+            print(f"Error updating fitness strategy: {e}")
+    
+    def _create_training_split_graph(self, strength_days, cardio_days):
+        """Create a visual graph showing training split"""
+        # Graph frame
+        graph_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
+        graph_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        graph_frame.grid_columnconfigure((0, 1), weight=1)
+        
+        # Graph title
+        graph_title = ctk.CTkLabel(
+            graph_frame,
+            text="Weekly Training Split",
+            font=ThemeManager.get_subtitle_font(),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        graph_title.grid(row=0, column=0, columnspan=2, pady=(0, 15))
+        
+        # Calculate total days and percentages
+        total_days = strength_days + cardio_days
+        rest_days = 7 - total_days
+        
+        # Create visual bars
+        bar_height = 30
+        bar_width = 300
+        
+        # Strength training bar
+        strength_frame = ctk.CTkFrame(graph_frame, fg_color="transparent")
+        strength_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=5)
+        strength_frame.grid_columnconfigure(1, weight=1)
+        
+        strength_label = ctk.CTkLabel(
+            strength_frame,
+            text="🏋️ Strength",
+            font=ThemeManager.get_label_font(),
+            width=80
+        )
+        strength_label.grid(row=0, column=0, padx=(0, 10))
+        
+        strength_bar_frame = ctk.CTkFrame(
+            strength_frame, 
+            height=bar_height, 
+            fg_color=ThemeManager.BG_COLOR,
+            corner_radius=15
+        )
+        strength_bar_frame.grid(row=0, column=1, sticky="ew")
+        strength_bar_frame.grid_propagate(False)
+        
+        if total_days > 0:
+            strength_width = int((strength_days / 7) * bar_width)
+            strength_bar = ctk.CTkFrame(
+                strength_bar_frame,
+                width=strength_width,
+                height=bar_height-4,
+                fg_color=ThemeManager.PRIMARY_COLOR,
+                corner_radius=15
+            )
+            strength_bar.place(x=2, y=2)
+            strength_bar.grid_propagate(False)
+        
+        strength_days_label = ctk.CTkLabel(
+            strength_frame,
+            text=f"{strength_days} days",
+            font=ThemeManager.get_small_font(),
+            width=60
+        )
+        strength_days_label.grid(row=0, column=2, padx=(10, 0))
+        
+        # Cardio training bar
+        cardio_frame = ctk.CTkFrame(graph_frame, fg_color="transparent")
+        cardio_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=5)
+        cardio_frame.grid_columnconfigure(1, weight=1)
+        
+        cardio_label = ctk.CTkLabel(
+            cardio_frame,
+            text="🏃 Cardio",
+            font=ThemeManager.get_label_font(),
+            width=80
+        )
+        cardio_label.grid(row=0, column=0, padx=(0, 10))
+        
+        cardio_bar_frame = ctk.CTkFrame(
+            cardio_frame, 
+            height=bar_height, 
+            fg_color=ThemeManager.BG_COLOR,
+            corner_radius=15
+        )
+        cardio_bar_frame.grid(row=0, column=1, sticky="ew")
+        cardio_bar_frame.grid_propagate(False)
+        
+        if total_days > 0:
+            cardio_width = int((cardio_days / 7) * bar_width)
+            cardio_bar = ctk.CTkFrame(
+                cardio_bar_frame,
+                width=cardio_width,
+                height=bar_height-4,
+                fg_color=ThemeManager.SUCCESS_COLOR,
+                corner_radius=15
+            )
+            cardio_bar.place(x=2, y=2)
+            cardio_bar.grid_propagate(False)
+        
+        cardio_days_label = ctk.CTkLabel(
+            cardio_frame,
+            text=f"{cardio_days} days",
+            font=ThemeManager.get_small_font(),
+            width=60
+        )
+        cardio_days_label.grid(row=0, column=2, padx=(10, 0))
+        
+        # Rest days
+        if rest_days > 0:
+            rest_frame = ctk.CTkFrame(graph_frame, fg_color="transparent")
+            rest_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=5)
+            rest_frame.grid_columnconfigure(1, weight=1)
+            
+            rest_label = ctk.CTkLabel(
+                rest_frame,
+                text="😴 Rest",
+                font=ThemeManager.get_label_font(),
+                width=80
+            )
+            rest_label.grid(row=0, column=0, padx=(0, 10))
+            
+            rest_bar_frame = ctk.CTkFrame(
+                rest_frame, 
+                height=bar_height, 
+                fg_color=ThemeManager.BG_COLOR,
+                corner_radius=15
+            )
+            rest_bar_frame.grid(row=0, column=1, sticky="ew")
+            rest_bar_frame.grid_propagate(False)
+            
+            rest_width = int((rest_days / 7) * bar_width)
+            rest_bar = ctk.CTkFrame(
+                rest_bar_frame,
+                width=rest_width,
+                height=bar_height-4,
+                fg_color=ThemeManager.GRAY_MEDIUM,
+                corner_radius=15
+            )
+            rest_bar.place(x=2, y=2)
+            rest_bar.grid_propagate(False)
+            
+            rest_days_label = ctk.CTkLabel(
+                rest_frame,
+                text=f"{rest_days} days",
+                font=ThemeManager.get_small_font(),
+                width=60
+            )
+            rest_days_label.grid(row=0, column=2, padx=(10, 0))
+
+
 class MealBasedFoodRecommendations(ctk.CTkFrame):
     """Enhanced component showing food recommendations as interactive cards organized by meal type"""
     
@@ -804,8 +2171,20 @@ class MealBasedFoodRecommendations(ctk.CTkFrame):
             
             # Create meal category cards
             row = 0
-            for meal_type, foods in meal_recommendations.items():
-                if not foods or (isinstance(foods, list) and len(foods) == 0):
+            for meal_type, meal_data in meal_recommendations.items():
+                # Handle different data structures
+                foods = []
+                if isinstance(meal_data, list):
+                    # Direct list of foods
+                    foods = meal_data
+                elif isinstance(meal_data, dict):
+                    # Dictionary with 'foods' key
+                    foods = meal_data.get('foods', [])
+                elif isinstance(meal_data, str):
+                    # Single food as string
+                    foods = [meal_data]
+                
+                if not foods:
                     continue
                     
                 # Create meal category card
@@ -821,6 +2200,8 @@ class MealBasedFoodRecommendations(ctk.CTkFrame):
                 
         except Exception as e:
             print(f"Error updating meal recommendations: {e}")
+            import traceback
+            traceback.print_exc()
             error_label = ctk.CTkLabel(
                 self.content_frame,
                 text="Error loading meal recommendations",
@@ -840,6 +2221,12 @@ class MealBasedFoodRecommendations(ctk.CTkFrame):
             error_window.title("Error")
             error_window.geometry("300x150")
             error_window.transient(self)
+            
+            # Center the error window
+            error_window.update_idletasks()
+            x = (error_window.winfo_screenwidth() // 2) - (300 // 2)
+            y = (error_window.winfo_screenheight() // 2) - (150 // 2)
+            error_window.geometry(f"300x150+{x}+{y}")
             
             error_label = ctk.CTkLabel(
                 error_window,
@@ -908,20 +2295,23 @@ class DietPage(ctk.CTkFrame):
     def _create_header(self):
         """Create page header with navigation and title"""
         self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.header_frame.grid(row=0, column=0, sticky="ew", pady=(20, 0), padx=20)
+        self.header_frame.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 0))
         self.header_frame.grid_columnconfigure(1, weight=1)
+        self.header_frame.grid_columnconfigure((2, 3), weight=0)  # Make buttons fixed width
         
-        # Back button
+        # Back button with arrow
         self.back_button = ctk.CTkButton(
             self.header_frame,
             text="← Back to Processing",
             font=ctk.CTkFont(size=14),
-            width=140,
+            width=160,
             height=32,
             corner_radius=16,
             fg_color="transparent",
             text_color=ThemeManager.GRAY_DARK,
             hover_color=ThemeManager.GRAY_LIGHT,
+            border_width=1,
+            border_color=ThemeManager.GRAY_LIGHT,
             command=self._go_back
         )
         self.back_button.grid(row=0, column=0, sticky="w")
@@ -959,7 +2349,21 @@ class DietPage(ctk.CTkFrame):
             hover_color=ThemeManager.PRIMARY_HOVER,
             command=self._go_to_history
         )
-        self.history_button.grid(row=0, column=2, sticky="e")
+        self.history_button.grid(row=0, column=2, sticky="e", padx=(0, 10))
+        
+        # Export button
+        self.export_button = ctk.CTkButton(
+            self.header_frame,
+            text="📤 Export",
+            font=ctk.CTkFont(size=14),
+            width=100,
+            height=32,
+            corner_radius=16,
+            fg_color=ThemeManager.SUCCESS_COLOR,
+            hover_color="#0d9668",  # Darker green for hover
+            command=self._export_diet_plan
+        )
+        self.export_button.grid(row=0, column=3, sticky="e")
         
     def _create_content_area(self):
         """Create main content area with scrollable container"""
@@ -1054,8 +2458,21 @@ class DietPage(ctk.CTkFrame):
         
     def _create_diet_section(self):
         """Create diet recommendations section"""
+        # Diet principles section
+        self.diet_principles = DietPrinciples(self.content_scroll)
+        self.diet_principles.grid(row=3, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        
+        # Fitness strategy section
+        self.fitness_strategy = FitnessStrategy(self.content_scroll)
+        self.fitness_strategy.grid(row=4, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        
+        # Meal recommendations section
         self.meal_recommendations = MealBasedFoodRecommendations(self.content_scroll)
-        self.meal_recommendations.grid(row=3, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        self.meal_recommendations.grid(row=5, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        
+        # Exercise recommendations section
+        self.exercise_recommendations = ExerciseRecommendations(self.content_scroll)
+        self.exercise_recommendations.grid(row=6, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
         
     def _create_footer(self):
         """Create footer with action buttons"""
@@ -1063,10 +2480,24 @@ class DietPage(ctk.CTkFrame):
         self.footer_frame.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="ew")
         self.footer_frame.grid_columnconfigure(1, weight=1)
         
-        # New Analysis button
+        # Try Again button (left side)
+        self.try_again_button = ctk.CTkButton(
+            self.footer_frame,
+            text="🔄 Try Again",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            width=140,
+            height=44,
+            corner_radius=22,
+            fg_color=ThemeManager.WARNING_COLOR,
+            hover_color="#d97706",  # Darker orange for hover
+            command=self._try_again
+        )
+        self.try_again_button.grid(row=0, column=0, sticky="w")
+        
+        # New Analysis button (right side)
         self.new_analysis_button = ctk.CTkButton(
             self.footer_frame,
-            text="🔄 New Analysis",
+            text="� New Analysis",
             font=ctk.CTkFont(size=14, weight="bold"),
             width=140,
             height=44,
@@ -1228,6 +2659,7 @@ class DietPage(ctk.CTkFrame):
                     ectomorph = float(soma_data.get('ectomorph_score', 33.3))
                     mesomorph = float(soma_data.get('mesomorph_score', 33.3))
                     endomorph = float(soma_data.get('endomorph_score', 33.3))
+                    somatotype_class = soma_data.get('somatotype_class', 'Balanced')
                     
                     # Create or update somatotype visualization
                     if self.soma_visual:
@@ -1237,7 +2669,8 @@ class DietPage(ctk.CTkFrame):
                         self.soma_frame,
                         ectomorph=ectomorph,
                         mesomorph=mesomorph,
-                        endomorph=endomorph
+                        endomorph=endomorph,
+                        somatotype_class=somatotype_class
                     )
                     self.soma_visual.grid(row=0, column=0, sticky="nsew", padx=15, pady=15)
                     
@@ -1266,18 +2699,81 @@ class DietPage(ctk.CTkFrame):
                         try:
                             meal_data = json.loads(meal_data)
                         except json.JSONDecodeError:
+                            print("ERROR - Failed to parse meal recommendations JSON")
                             meal_data = {}
                     
-                    # Update meal recommendations
-                    self.meal_recommendations.update_recommendations(meal_data)
+                    print(f"DEBUG - Meal data keys: {list(meal_data.keys()) if meal_data else 'None'}")
+                    
+                    # Extract and display diet principles
+                    if 'diet_principles' in meal_data:
+                        diet_principles = meal_data['diet_principles']
+                        print(f"DEBUG - Found diet principles: {len(diet_principles) if diet_principles else 0} items")
+                        self.diet_principles.update_principles(diet_principles)
+                    else:
+                        print("DEBUG - No diet principles found")
+                        self.diet_principles.update_principles([])
+                    
+                    # Extract and display fitness strategy
+                    fitness_strategy_text = meal_data.get('fitness_strategy', '')
+                    
+                    # Try to get additional fitness data from fitness recommendations table
+                    fitness_data = self.db_manager.get_fitness_recommendations(session_id)
+                    
+                    strategy_data = {
+                        'fitness_strategy': fitness_strategy_text or (fitness_data.get('fitness_strategy', '') if fitness_data else ''),
+                        'strength_days': fitness_data.get('strength_days', 0) if fitness_data else 0,
+                        'cardio_days': fitness_data.get('cardio_days', 0) if fitness_data else 0
+                    }
+                    
+                    if strategy_data['fitness_strategy'] or strategy_data['strength_days'] or strategy_data['cardio_days']:
+                        print(f"DEBUG - Found fitness strategy: {strategy_data['fitness_strategy'][:50]}...")
+                        self.fitness_strategy.update_strategy(strategy_data)
+                    else:
+                        print("DEBUG - No fitness strategy found")
+                        self.fitness_strategy.update_strategy({})
+                    
+                    # Extract meals from the meal data structure
+                    if 'meals' in meal_data:
+                        meals = meal_data['meals']
+                        print(f"DEBUG - Found meals structure with keys: {list(meals.keys())}")
+                        self.meal_recommendations.update_recommendations(meals)
+                    elif any(key in meal_data for key in ['breakfast', 'lunch', 'dinner', 'snack']):
+                        # Direct meal structure
+                        print("DEBUG - Found direct meal structure")
+                        self.meal_recommendations.update_recommendations(meal_data)
+                    else:
+                        print("DEBUG - No recognized meal structure found")
+                        self.meal_recommendations.update_recommendations({})
+                    
+                    # Extract and display exercise data
+                    if 'exercises' in meal_data:
+                        exercise_data = meal_data['exercises']
+                        print(f"DEBUG - Found exercise data with keys: {list(exercise_data.keys()) if exercise_data else 'None'}")
+                        self.exercise_recommendations.update_exercise_recommendations(exercise_data)
+                    else:
+                        print("DEBUG - No exercise data found in meal data, trying fitness recommendations")
+                        # Use fitness data we already loaded
+                        if fitness_data and fitness_data.get('exercises'):
+                            print(f"DEBUG - Found fitness data with keys: {list(fitness_data['exercises'].keys())}")
+                            self.exercise_recommendations.update_exercise_recommendations(fitness_data['exercises'])
+                        else:
+                            print("DEBUG - No fitness data found either")
+                            self.exercise_recommendations.update_exercise_recommendations({})
                 else:
-                    # Show default/empty recommendations
                     print("No meal recommendations found in diet data")
-                    # The meal recommendations component will show empty state
+                    self.diet_principles.update_principles([])
+                    self.fitness_strategy.update_strategy({})
+                    self.meal_recommendations.update_recommendations({})
+                    self.exercise_recommendations.update_exercise_recommendations({})
                     
         except Exception as e:
             print(f"Error loading diet recommendations: {e}")
-            # Just print error, don't try to call non-existent method
+            import traceback
+            traceback.print_exc()
+            self.diet_principles.update_principles([])
+            self.fitness_strategy.update_strategy({})
+            self.meal_recommendations.update_recommendations({})
+            self.exercise_recommendations.update_exercise_recommendations({})
             
     def _on_mousewheel(self, event):
         """Throttled scroll handler to prevent UI distortion"""
@@ -1400,12 +2896,220 @@ class DietPage(ctk.CTkFrame):
         except Exception as e:
             print(f"Error going to capture: {e}")
             
-    def _start_new_analysis(self):
-        """Start a new analysis"""
+    def _try_again(self):
+        """Try again with current data - goes to capture page"""
         try:
             self.controller.show_frame("CapturePage")
         except Exception as e:
+            print(f"Error trying again: {e}")
+            
+    def _start_new_analysis(self):
+        """Start a new analysis - clears all data and goes to input page"""
+        try:
+            # Clear user data from state manager
+            if hasattr(self.controller, 'state_manager'):
+                self.controller.state_manager.user_data = {
+                    "name": "",
+                    "gender": "male",
+                    "age": "",
+                    "weight": "",
+                    "height": "",
+                    "goal": "Maintain Weight",
+                    "activity_level": "Sedentary (little or no exercise)",
+                    "allergies": []
+                }
+                
+                # Clear analysis data if it exists
+                if hasattr(self.controller.state_manager, 'analysis_data'):
+                    self.controller.state_manager.analysis_data = {}
+                
+                # Clear any captured images
+                if hasattr(self.controller.state_manager, 'image_data'):
+                    self.controller.state_manager.image_data = {}
+            
+            # Reset capture page state
+            self._clear_capture_page()
+                    
+            # Navigate to input page
+            self.controller.show_frame("InputPage")
+            
+            # Clear the input form after a short delay to ensure page is loaded
+            self.after(100, self._clear_input_form)
+            
+        except Exception as e:
             print(f"Error starting new analysis: {e}")
+    
+    def _clear_capture_page(self):
+        """Clear the capture page state"""
+        try:
+            # Try to access the capture page and reset its state
+            if hasattr(self.controller, 'frames') and 'CapturePage' in self.controller.frames:
+                capture_page = self.controller.frames['CapturePage']
+                if hasattr(capture_page, 'reset_capture_state'):
+                    capture_page.reset_capture_state()
+                    print("Capture page cleared successfully")
+                    
+            # Also clear any image data from state manager more thoroughly
+            if hasattr(self.controller, 'state_manager'):
+                # Clear various possible image storage locations
+                attrs_to_clear = ['image_data', 'front_image', 'side_image', 'captured_images', 'analysis_images']
+                for attr in attrs_to_clear:
+                    if hasattr(self.controller.state_manager, attr):
+                        setattr(self.controller.state_manager, attr, {})
+            
+            # Additional safety: directly clear input image files
+            self._clear_input_image_files()
+                        
+        except Exception as e:
+            print(f"Error clearing capture page: {e}")
+    
+    def _clear_input_image_files(self):
+        """Directly clear input image files as backup"""
+        try:
+            # Get the input files directory path
+            PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+            input_files_dir = os.path.join(PROJECT_DIR, "data", "input_files")
+            
+            # Files to clear
+            files_to_clear = [
+                os.path.join(input_files_dir, "input_front.png"),
+                os.path.join(input_files_dir, "input_side.png")
+            ]
+            
+            for file_path in files_to_clear:
+                if os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                        print(f"Cleared input file: {file_path}")
+                    except Exception as e:
+                        print(f"Could not remove {file_path}: {e}")
+                        
+        except Exception as e:
+            print(f"Error clearing input image files: {e}")
+    
+    def _clear_input_form(self):
+        """Helper method to clear the input form"""
+        try:
+            # Try to access the input page and clear its form
+            if hasattr(self.controller, 'frames') and 'InputPage' in self.controller.frames:
+                input_page = self.controller.frames['InputPage']
+                if hasattr(input_page, 'clear_form'):
+                    input_page.clear_form()
+        except Exception as e:
+            print(f"Error clearing input form: {e}")
+    
+    def _export_diet_plan(self):
+        """Export the current diet plan to CSV"""
+        try:
+            from tkinter import filedialog
+            import csv
+            from datetime import datetime
+            
+            # Ask user where to save the file
+            filename = filedialog.asksaveasfilename(
+                title="Export Diet Plan",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+                initialname=f"diet_plan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            )
+            
+            if not filename:
+                return  # User cancelled
+                
+            # Get current diet data
+            if not hasattr(self, 'current_record') or not self.current_record:
+                from tkinter import messagebox
+                messagebox.showwarning("No Data", "No diet plan data available to export.")
+                return
+            
+            # Prepare data for export
+            export_data = []
+            
+            # Add header information
+            export_data.append(["Diet Plan Export"])
+            export_data.append(["Generated on:", datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+            export_data.append([])  # Empty row
+            
+            # Add user information
+            user_data = self.current_record.get('user_data', {})
+            export_data.append(["User Information"])
+            export_data.append(["Name:", user_data.get('name', 'N/A')])
+            export_data.append(["Age:", user_data.get('age', 'N/A')])
+            export_data.append(["Gender:", user_data.get('gender', 'N/A')])
+            export_data.append(["Weight:", f"{user_data.get('weight', 'N/A')} kg"])
+            export_data.append(["Height:", f"{user_data.get('height', 'N/A')} cm"])
+            export_data.append(["Goal:", user_data.get('goal', 'N/A')])
+            export_data.append(["Activity Level:", user_data.get('activity_level', 'N/A')])
+            export_data.append([])  # Empty row
+            
+            # Add somatotype information
+            somatotype_data = self.current_record.get('somatotype_data', {})
+            export_data.append(["Somatotype Analysis"])
+            export_data.append(["Classification:", somatotype_data.get('class', 'N/A')])
+            export_data.append(["Ectomorph %:", somatotype_data.get('ectomorph', 'N/A')])
+            export_data.append(["Mesomorph %:", somatotype_data.get('mesomorph', 'N/A')])
+            export_data.append(["Endomorph %:", somatotype_data.get('endomorph', 'N/A')])
+            export_data.append([])  # Empty row
+            
+            # Add diet recommendations
+            diet_data = self.current_record.get('diet_data', {})
+            if diet_data:
+                export_data.append(["Daily Calorie Target"])
+                export_data.append(["Total Calories:", f"{diet_data.get('daily_calories', 'N/A')} kcal"])
+                export_data.append([])  # Empty row
+                
+                # Macronutrients
+                export_data.append(["Macronutrient Distribution"])
+                macros = diet_data.get('macronutrients', {})
+                export_data.append(["Protein:", f"{macros.get('protein', 'N/A')}%"])
+                export_data.append(["Carbohydrates:", f"{macros.get('carbs', 'N/A')}%"])
+                export_data.append(["Fat:", f"{macros.get('fat', 'N/A')}%"])
+                export_data.append([])  # Empty row
+                
+                # Meal recommendations
+                meals = diet_data.get('meals', {})
+                if meals:
+                    export_data.append(["Recommended Meals"])
+                    for meal_type, meal_data in meals.items():
+                        export_data.append([f"{meal_type.title()}:"])
+                        if isinstance(meal_data, list):
+                            for food_item in meal_data:
+                                if isinstance(food_item, dict):
+                                    name = food_item.get('name', 'Unknown')
+                                    calories = food_item.get('calories', 'N/A')
+                                    export_data.append([f"  - {name}", f"{calories} kcal"])
+                                else:
+                                    export_data.append([f"  - {food_item}"])
+                        export_data.append([])  # Empty row after each meal
+            
+            # Add fitness recommendations
+            fitness_data = self.current_record.get('fitness_data', {})
+            if fitness_data and fitness_data.get('exercises'):
+                export_data.append(["Fitness Recommendations"])
+                exercises = fitness_data.get('exercises', [])
+                for exercise in exercises:
+                    if isinstance(exercise, dict):
+                        name = exercise.get('name', 'Unknown Exercise')
+                        duration = exercise.get('duration', 'N/A')
+                        export_data.append([f"- {name}", f"Duration: {duration}"])
+                    else:
+                        export_data.append([f"- {exercise}"])
+                export_data.append([])  # Empty row
+            
+            # Write to CSV file
+            with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerows(export_data)
+            
+            # Show success message
+            from tkinter import messagebox
+            messagebox.showinfo("Export Successful", f"Diet plan exported successfully to:\n{filename}")
+            
+        except Exception as e:
+            from tkinter import messagebox
+            messagebox.showerror("Export Error", f"Failed to export diet plan:\n{str(e)}")
+            print(f"Error exporting diet plan: {e}")
+            traceback.print_exc()
 
 
 # Test the page if run directly

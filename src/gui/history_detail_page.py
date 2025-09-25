@@ -17,7 +17,7 @@ sys.path.append(PROJECT_DIR)
 
 from utils.theme_manager import ThemeManager
 from utils.database import DatabaseManager
-from gui.diet_page import MacronutrientChart, SomatotypeVisual, CalorieInfoCard, MealBasedFoodRecommendations
+from gui.diet_page import MacronutrientChart, SomatotypeVisual, CalorieInfoCard, MealBasedFoodRecommendations, ExerciseRecommendations, DietPrinciples, FitnessStrategy
 
 
 class HistoryDetailPage(ctk.CTkFrame):
@@ -58,7 +58,6 @@ class HistoryDetailPage(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=0)  # Header
         self.grid_rowconfigure(1, weight=1)  # Content
-        self.grid_rowconfigure(2, weight=0)  # Footer
         
         # Header with title and navigation
         self._create_header()
@@ -66,37 +65,35 @@ class HistoryDetailPage(ctk.CTkFrame):
         # Main content area with scrollable container
         self._create_content_area()
         
-        # Footer with action buttons
-        self._create_footer()
-        
     def _create_header(self):
-        """Create page header with navigation and title"""
+        """Create page header with back button and export button"""
         self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.header_frame.grid(row=0, column=0, sticky="ew", pady=(20, 0), padx=20)
+        self.header_frame.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 0))
         self.header_frame.grid_columnconfigure(1, weight=1)
         
-        # Back button
+        # Back button (left aligned)
         self.back_button = ctk.CTkButton(
             self.header_frame,
-            text="← Back to History",
+            text="← Back",
             font=ctk.CTkFont(size=14),
-            width=140,
-            height=32,
-            corner_radius=16,
-            fg_color="transparent",
-            text_color=ThemeManager.GRAY_DARK,
+            width=80,
+            height=36,
+            fg_color=ThemeManager.SECONDARY_COLOR,
+            text_color=ThemeManager.PRIMARY_COLOR,
             hover_color=ThemeManager.GRAY_LIGHT,
+            border_width=1,
+            border_color=ThemeManager.PRIMARY_COLOR,
             command=self._go_back
         )
         self.back_button.grid(row=0, column=0, sticky="w")
         
-        # Title section
+        # Title section (centered)
         self.title_section = ctk.CTkFrame(self.header_frame, fg_color="transparent")
         self.title_section.grid(row=0, column=1, sticky="")
         
         self.title_label = ctk.CTkLabel(
             self.title_section,
-            text="Analysis Details",
+            text="Your Personalized Diet Plan",
             font=ThemeManager.get_title_font(),
             text_color=ThemeManager.PRIMARY_COLOR
         )
@@ -105,13 +102,13 @@ class HistoryDetailPage(ctk.CTkFrame):
         # Date label (updated when record is loaded)
         self.date_label = ctk.CTkLabel(
             self.title_section,
-            text="",
+            text="Based on your body measurements and somatotype analysis",
             font=ThemeManager.get_label_font(),
             text_color=ThemeManager.GRAY_DARK
         )
         self.date_label.grid(row=1, column=0, pady=(5, 0))
         
-        # Export button
+        # Export button (right aligned)
         self.export_button = ctk.CTkButton(
             self.header_frame,
             text="📤 Export",
@@ -286,42 +283,21 @@ class HistoryDetailPage(ctk.CTkFrame):
         
     def _create_diet_section(self):
         """Create diet recommendations section"""
-        self.meal_recommendations = MealBasedFoodRecommendations(self.content_scroll)
-        self.meal_recommendations.grid(row=4, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        # Diet principles section
+        self.diet_principles = DietPrinciples(self.content_scroll)
+        self.diet_principles.grid(row=4, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
         
-    def _create_footer(self):
-        """Create footer with action buttons"""
-        self.footer_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.footer_frame.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="ew")
-        self.footer_frame.grid_columnconfigure(1, weight=1)
+        # Fitness strategy section
+        self.fitness_strategy = FitnessStrategy(self.content_scroll)
+        self.fitness_strategy.grid(row=5, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
         
-        # Delete record button
-        self.delete_button = ctk.CTkButton(
-            self.footer_frame,
-            text="🗑️ Delete Record",
-            font=ctk.CTkFont(size=14),
-            width=140,
-            height=44,
-            corner_radius=22,
-            fg_color=ThemeManager.WARNING_COLOR,
-            hover_color="#DC2626",
-            command=self._delete_record
-        )
-        self.delete_button.grid(row=0, column=0, sticky="w")
+        # Meal recommendations section with food click callback
+        self.meal_recommendations = HistoryMealBasedFoodRecommendations(self.content_scroll)
+        self.meal_recommendations.grid(row=6, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
         
-        # Rerun analysis button
-        self.rerun_button = ctk.CTkButton(
-            self.footer_frame,
-            text="🔄 Rerun Analysis",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            width=140,
-            height=44,
-            corner_radius=22,
-            fg_color=ThemeManager.PRIMARY_COLOR,
-            hover_color=ThemeManager.PRIMARY_HOVER,
-            command=self._rerun_analysis
-        )
-        self.rerun_button.grid(row=0, column=2, sticky="e")
+        # Exercise recommendations section
+        self.exercise_recommendations = HistoryExerciseRecommendations(self.content_scroll)
+        self.exercise_recommendations.grid(row=7, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
         
     def load_record_data(self, record_data):
         """Load and display data from a history record"""
@@ -332,7 +308,9 @@ class HistoryDetailPage(ctk.CTkFrame):
             session_date = record_data.get('session_date', '')
             if session_date:
                 formatted_date = self._format_date(session_date)
-                self.date_label.configure(text=f"Analysis from {formatted_date}")
+                self.date_label.configure(text=f"Based on analysis from {formatted_date}")
+            else:
+                self.date_label.configure(text="Based on your body measurements and somatotype analysis")
             
             # Update user summary
             name = record_data.get('name', 'Unknown User')
@@ -532,18 +510,81 @@ class HistoryDetailPage(ctk.CTkFrame):
                         try:
                             meal_data = json.loads(meal_data)
                         except json.JSONDecodeError:
+                            print("ERROR - Failed to parse meal recommendations JSON")
                             meal_data = {}
                     
-                    # Update meal recommendations
-                    self.meal_recommendations.update_recommendations(meal_data)
+                    print(f"DEBUG - Meal data keys: {list(meal_data.keys()) if meal_data else 'None'}")
+                    
+                    # Extract and display diet principles
+                    if 'diet_principles' in meal_data:
+                        diet_principles = meal_data['diet_principles']
+                        print(f"DEBUG - Found diet principles: {len(diet_principles) if diet_principles else 0} items")
+                        self.diet_principles.update_principles(diet_principles)
+                    else:
+                        print("DEBUG - No diet principles found")
+                        self.diet_principles.update_principles([])
+                    
+                    # Extract and display fitness strategy
+                    fitness_strategy_text = meal_data.get('fitness_strategy', '')
+                    
+                    # Try to get additional fitness data from fitness recommendations table
+                    fitness_data = self.db_manager.get_fitness_recommendations(session_id)
+                    
+                    strategy_data = {
+                        'fitness_strategy': fitness_strategy_text or (fitness_data.get('fitness_strategy', '') if fitness_data else ''),
+                        'strength_days': fitness_data.get('strength_days', 0) if fitness_data else 0,
+                        'cardio_days': fitness_data.get('cardio_days', 0) if fitness_data else 0
+                    }
+                    
+                    if strategy_data['fitness_strategy'] or strategy_data['strength_days'] or strategy_data['cardio_days']:
+                        print(f"DEBUG - Found fitness strategy: {strategy_data['fitness_strategy'][:50]}...")
+                        self.fitness_strategy.update_strategy(strategy_data)
+                    else:
+                        print("DEBUG - No fitness strategy found")
+                        self.fitness_strategy.update_strategy({})
+                    
+                    # Extract meals from the meal data structure
+                    if 'meals' in meal_data:
+                        meals = meal_data['meals']
+                        print(f"DEBUG - Found meals structure with keys: {list(meals.keys())}")
+                        self.meal_recommendations.update_recommendations(meals)
+                    elif any(key in meal_data for key in ['breakfast', 'lunch', 'dinner', 'snack']):
+                        # Direct meal structure
+                        print("DEBUG - Found direct meal structure")
+                        self.meal_recommendations.update_recommendations(meal_data)
+                    else:
+                        print("DEBUG - No recognized meal structure found")
+                        self.meal_recommendations.update_recommendations({})
+                    
+                    # Extract and display exercise data
+                    if 'exercises' in meal_data:
+                        exercise_data = meal_data['exercises']
+                        print(f"DEBUG - Found exercise data with keys: {list(exercise_data.keys()) if exercise_data else 'None'}")
+                        self.exercise_recommendations.update_exercise_recommendations(exercise_data)
+                    else:
+                        print("DEBUG - No exercise data found in meal data, trying fitness recommendations")
+                        # Use fitness data we already loaded
+                        if fitness_data and fitness_data.get('exercises'):
+                            print(f"DEBUG - Found fitness data with keys: {list(fitness_data['exercises'].keys())}")
+                            self.exercise_recommendations.update_exercise_recommendations(fitness_data['exercises'])
+                        else:
+                            print("DEBUG - No fitness data found either")
+                            self.exercise_recommendations.update_exercise_recommendations({})
                 else:
-                    # Show default/empty recommendations
                     print("No meal recommendations found in diet data")
-                    # The meal recommendations component will show empty state
+                    self.diet_principles.update_principles([])
+                    self.fitness_strategy.update_strategy({})
+                    self.meal_recommendations.update_recommendations({})
+                    self.exercise_recommendations.update_exercise_recommendations({})
                     
         except Exception as e:
             print(f"Error loading diet recommendations: {e}")
-            # Just print error, don't try to call non-existent method
+            import traceback
+            traceback.print_exc()
+            self.diet_principles.update_principles([])
+            self.fitness_strategy.update_strategy({})
+            self.meal_recommendations.update_recommendations({})
+            self.exercise_recommendations.update_exercise_recommendations({})
             
     def _format_date(self, date_string):
         """Format date string for display"""
@@ -583,25 +624,32 @@ class HistoryDetailPage(ctk.CTkFrame):
             command=error_dialog.destroy
         )
         close_button.grid(row=1, column=0, pady=(0, 20))
+    
+    def _go_back(self):
+        """Navigate back to history page"""
+        try:
+            self.controller.show_frame("HistoryPage")
+        except Exception as e:
+            print(f"Error navigating back: {e}")
         
     def _export_results(self):
         """Export analysis results"""
         # TODO: Implement export functionality
         print("Export functionality not yet implemented")
         
-    def _delete_record(self):
-        """Delete the current record after confirmation"""
-        # TODO: Implement delete functionality with confirmation dialog
-        print("Delete functionality not yet implemented")
+    # def _delete_record(self):
+    #     """Delete the current record after confirmation"""
+    #     # TODO: Implement delete functionality with confirmation dialog
+    #     print("Delete functionality not yet implemented")
         
-    def _rerun_analysis(self):
-        """Rerun analysis with the same parameters"""
-        # TODO: Implement rerun functionality
-        print("Rerun functionality not yet implemented")
+    # def _rerun_analysis(self):
+    #     """Rerun analysis with the same parameters"""
+    #     # TODO: Implement rerun functionality
+    #     print("Rerun functionality not yet implemented")
         
-    def _go_back(self):
-        """Go back to history page"""
-        self.controller.show_frame("HistoryPage")
+    # def _go_back(self):
+    #     """Go back to history page"""
+    #     self.controller.show_frame("HistoryPage")
         
     def on_show(self):
         """Called when page is shown"""
@@ -661,9 +709,66 @@ class HistoryDetailPage(ctk.CTkFrame):
             print(f"Scroll error: {e}")
         finally:
             self._scroll_job = None
+    
+
+class HistoryMealBasedFoodRecommendations(MealBasedFoodRecommendations):
+    """Custom MealBasedFoodRecommendations with modal support for history detail page"""
+    
+    def _show_food_details(self, food_data):
+        """Show detailed food information in a modal"""
+        try:
+            from gui.diet_page import MacronutrientDetailModal
+            modal = MacronutrientDetailModal(self, food_data)
+        except Exception as e:
+            print(f"Error showing food details: {e}")
+            # Show a simple error message instead
+            error_window = ctk.CTkToplevel(self)
+            error_window.title("Error")
+            error_window.geometry("300x150")
+            error_window.transient(self)
+            
+            # Center the error window
+            error_window.update_idletasks()
+            x = (error_window.winfo_screenwidth() // 2) - (300 // 2)
+            y = (error_window.winfo_screenheight() // 2) - (150 // 2)
+            error_window.geometry(f"300x150+{x}+{y}")
+            
+            error_label = ctk.CTkLabel(
+                error_window,
+                text="Could not load food details",
+                font=ThemeManager.get_label_font()
+            )
+            error_label.pack(expand=True)
+            
+            close_btn = ctk.CTkButton(
+                error_window,
+                text="Close",
+                command=error_window.destroy
+            )
+            close_btn.pack(pady=10)
+
+
+class HistoryExerciseRecommendations(ExerciseRecommendations):
+    """Custom ExerciseRecommendations with modal support for history detail page"""
+    
+    def _show_exercise_details(self, exercise_data):
+        """Show detailed exercise information in a modal window"""
+        try:
+            from gui.diet_page import ExerciseDetailModal
+            ExerciseDetailModal(self, exercise_data)
+        except Exception as e:
+            print(f"Error showing exercise details: {e}")
 
 
 if __name__ == "__main__":
+    import sys
+    import os
+    # Add parent directory to path for imports
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(current_dir)
+    if parent_dir not in sys.path:
+        sys.path.insert(0, parent_dir)
+    
     # Test the history detail page
     class DummyController:
         def __init__(self):

@@ -8,6 +8,7 @@ import customtkinter as ctk
 from PIL import Image
 from utils.theme_manager import ThemeManager, IMAGES_DIR
 from utils.database import DatabaseManager
+from utils.modal_manager import ModalManager
 
 class LandingPage(ctk.CTkFrame):
     """Landing page with modern UI design"""
@@ -123,88 +124,191 @@ class LandingPage(ctk.CTkFrame):
         self.footer_text.grid(row=4, column=0, padx=20, pady=(20, 0))
         
     def show_about(self):
-        """Show about dialog"""
-        dialog = ctk.CTkToplevel(self)
-        dialog.title("About")
-        dialog.geometry("500x400")
-        dialog.transient(self)  # Make dialog modal
-        dialog.grab_set()
-        
-        # Configure dialog layout
-        dialog.grid_columnconfigure(0, weight=1)
-        dialog.grid_rowconfigure(0, weight=1)
-        
-        # Create frame for content
-        frame = ThemeManager.create_card_frame(dialog)
-        frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
-        frame.grid_columnconfigure(0, weight=1)
-        
-        # Title
-        title_label = ctk.CTkLabel(
-            frame,
-            text="Diet Recommendation System",
-            font=ThemeManager.get_subtitle_font()
-        )
-        title_label.grid(row=0, column=0, padx=20, pady=(20, 10))
-        
-        # Version
-        version_label = ctk.CTkLabel(
-            frame,
-            text="Version 1.0",
-            font=ThemeManager.get_label_font()
-        )
-        version_label.grid(row=1, column=0, padx=20, pady=(0, 20))
-        
-        # Description
-        description_text = (
-            "This application uses Deep Learning and Computer Vision techniques to analyze "
-            "your body's somatotype (body type) and provide personalized diet recommendations "
-            "based on your specific body composition and goals.\n\n"
-            "The system captures front and side images, processes them through a CNN model "
-            "to extract key measurements, and then classifies your body type to generate tailored "
-            "nutritional advice."
-        )
-        description_label = ctk.CTkLabel(
-            frame,
-            text=description_text,
-            font=ThemeManager.get_small_font(),
-            wraplength=400,
-            justify="left"
-        )
-        description_label.grid(row=2, column=0, padx=20, pady=10)
-        
-        # How it works section
-        how_title = ctk.CTkLabel(
-            frame,
-            text="How it works",
-            font=ThemeManager.get_label_font(),
-            anchor="w"
-        )
-        how_title.grid(row=3, column=0, padx=20, pady=(20, 5), sticky="w")
-        
-        steps_text = (
-            "1. Input your personal details\n"
-            "2. Capture front and side images\n"
-            "3. AI analyzes your body measurements\n"
-            "4. System classifies your somatotype\n"
-            "5. Receive personalized diet recommendations"
-        )
-        steps_label = ctk.CTkLabel(
-            frame,
-            text=steps_text,
-            font=ThemeManager.get_small_font(),
-            justify="left",
-            anchor="w"
-        )
-        steps_label.grid(row=4, column=0, padx=20, pady=5, sticky="w")
-        
-        # Close button
-        close_button = ThemeManager.create_primary_button(
-            frame,
-            "Close",
-            dialog.destroy
-        )
-        close_button.grid(row=5, column=0, padx=20, pady=20)
+        """Show enhanced about dialog with improved UI and centering"""
+        try:
+            # Create modal using standard CTkToplevel to avoid handle issues
+            modal = ctk.CTkToplevel(self)
+            modal.title("About Diet Recommendation System")
+            modal.geometry("600x650")
+            modal.resizable(False, False)
+            
+            # Set modal properties
+            modal.transient(self)
+            modal.lift()
+            modal.focus_set()
+            
+            # Center the modal manually
+            modal.update_idletasks()
+            x = (modal.winfo_screenwidth() // 2) - (600 // 2)
+            y = (modal.winfo_screenheight() // 2) - (650 // 2)
+            modal.geometry(f"600x650+{x}+{y}")
+            
+            # Configure background
+            modal.configure(fg_color=ThemeManager.BG_COLOR)
+            
+            # Main content frame with scrollable area
+            main_frame = ctk.CTkFrame(modal, fg_color="transparent")
+            main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+            main_frame.grid_columnconfigure(0, weight=1)
+            
+            # Scrollable frame
+            scrollable_frame = ctk.CTkScrollableFrame(
+                main_frame,
+                height=550,
+                fg_color=ThemeManager.get_card_fg_color(),
+                corner_radius=15
+            )
+            scrollable_frame.pack(fill="both", expand=True)
+            scrollable_frame.grid_columnconfigure(0, weight=1)
+            
+            # App title with icon
+            title_label = ctk.CTkLabel(
+                scrollable_frame,
+                text="🥗 Diet Recommendation System",
+                font=ThemeManager.get_title_font(),
+                text_color=ThemeManager.PRIMARY_COLOR
+            )
+            title_label.grid(row=0, column=0, pady=(20, 10))
+            
+            # Version badge
+            version_frame = ctk.CTkFrame(
+                scrollable_frame,
+                fg_color=ThemeManager.PRIMARY_COLOR,
+                corner_radius=20,
+                height=40
+            )
+            version_frame.grid(row=1, column=0, pady=(0, 20))
+            version_frame.grid_propagate(False)
+            
+            version_label = ctk.CTkLabel(
+                version_frame,
+                text="Version 1.0",
+                font=ThemeManager.get_label_font(),
+                text_color="white"
+            )
+            version_label.pack(pady=10, padx=20)
+            
+            # Description section
+            description_frame = ctk.CTkFrame(
+                scrollable_frame,
+                fg_color="white",
+                corner_radius=15,
+                border_width=2,
+                border_color=ThemeManager.GRAY_LIGHT
+            )
+            description_frame.grid(row=2, column=0, pady=(0, 20), padx=20, sticky="ew")
+            description_frame.grid_columnconfigure(0, weight=1)
+            
+            desc_title = ctk.CTkLabel(
+                description_frame,
+                text="🎯 What is this app?",
+                font=ThemeManager.get_subtitle_font(),
+                text_color=ThemeManager.PRIMARY_COLOR
+            )
+            desc_title.grid(row=0, column=0, pady=(15, 10))
+            
+            description_text = (
+                "This application uses Advanced Deep Learning and Computer Vision "
+                "techniques to analyze your body's somatotype (body type) and provide "
+                "personalized diet and fitness recommendations.\n\n"
+                "🔬 The system captures front and side images, processes them through "
+                "a sophisticated CNN model to extract key body measurements, classifies "
+                "your somatotype, and generates tailored nutritional advice based on "
+                "your specific body composition and fitness goals."
+            )
+            description_label = ctk.CTkLabel(
+                description_frame,
+                text=description_text,
+                font=ThemeManager.get_small_font(),
+                text_color=ThemeManager.GRAY_DARK,
+                wraplength=520,
+                justify="left"
+            )
+            description_label.grid(row=1, column=0, padx=20, pady=(0, 15), sticky="ew")
+            
+            # Key Features
+            features_frame = ctk.CTkFrame(
+                scrollable_frame,
+                fg_color="white",
+                corner_radius=15,
+                border_width=2,
+                border_color=ThemeManager.GRAY_LIGHT
+            )
+            features_frame.grid(row=3, column=0, pady=(0, 20), padx=20, sticky="ew")
+            features_frame.grid_columnconfigure((0, 1), weight=1)
+            
+            features_title = ctk.CTkLabel(
+                features_frame,
+                text="✨ Key Features",
+                font=ThemeManager.get_subtitle_font(),
+                text_color=ThemeManager.PRIMARY_COLOR
+            )
+            features_title.grid(row=0, column=0, columnspan=2, pady=(15, 10))
+            
+            features = [
+                "🎯 Personalized diet plans", "💪 Exercise recommendations",
+                "� Nutritional tracking", "🎬 Exercise GIF demonstrations",
+                "📈 Progress monitoring", "🏥 Health-focused approach"
+            ]
+            
+            for i, feature in enumerate(features):
+                feature_label = ctk.CTkLabel(
+                    features_frame,
+                    text=feature,
+                    font=ThemeManager.get_small_font(),
+                    text_color=ThemeManager.GRAY_DARK,
+                    anchor="w"
+                )
+                feature_label.grid(
+                    row=1 + i // 2, 
+                    column=i % 2, 
+                    padx=15, 
+                    pady=3, 
+                    sticky="w"
+                )
+            
+            # Close button frame for proper positioning
+            button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+            button_frame.pack(fill="x", pady=(0, 0))
+            
+            close_button = ctk.CTkButton(
+                button_frame,
+                text="Close",
+                command=modal.destroy,
+                font=ThemeManager.get_button_font(),
+                fg_color=ThemeManager.PRIMARY_COLOR,
+                hover_color=ThemeManager.PRIMARY_HOVER,
+                corner_radius=12,
+                width=120,
+                height=40
+            )
+            close_button.pack(anchor="center")
+            
+            # Set focus after modal is ready
+            modal.after(100, lambda: modal.grab_set() if modal.winfo_exists() else None)
+            
+        except Exception as e:
+            print(f"Error creating about modal: {e}")
+            # Fallback simple message box
+            import tkinter.messagebox as msgbox
+            msgbox.showinfo(
+                "About Diet Recommendation System",
+                "Diet Recommendation System v1.0\n\n"
+                "This application uses Advanced Deep Learning and Computer Vision "
+                "to analyze your body type and provide personalized diet recommendations.\n\n"
+                "Features:\n"
+                "• Personalized diet plans\n"
+                "• Exercise recommendations\n"
+                "• Nutritional tracking\n"
+                "• Progress monitoring"
+            )
+
+    def center_dialog(self, dialog, width, height):
+        """Center a dialog window on the screen"""
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() // 2) - (width // 2)
+        y = (dialog.winfo_screenheight() // 2) - (height // 2)
+        dialog.geometry(f"{width}x{height}+{x}+{y}")
 
     def show_history(self):
         """Navigate to history page"""
@@ -347,6 +451,9 @@ class LandingPage(ctk.CTkFrame):
         detail_dialog.transient(self)
         detail_dialog.grab_set()
         
+        # Center the dialog
+        self.center_dialog(detail_dialog, 700, 500)
+        
         # Configure layout
         detail_dialog.grid_columnconfigure(0, weight=1)
         detail_dialog.grid_rowconfigure(1, weight=1)
@@ -470,6 +577,7 @@ class LandingPage(ctk.CTkFrame):
         confirm_dialog.grab_set()
         
         # Center the dialog
+        self.center_dialog(confirm_dialog, 400, 200)
         confirm_dialog.grid_columnconfigure(0, weight=1)
         
         message_label = ctk.CTkLabel(

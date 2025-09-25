@@ -17,6 +17,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from image_capture.capture import AdvancedPoseDetector
 from utils.utils import INPUT_FILES_DIR
 from utils.theme_manager import ThemeManager
+from utils.notifications import NotificationManager
 
 
 class StepIndicator(ctk.CTkFrame):
@@ -925,9 +926,12 @@ class CapturePage(ctk.CTkFrame):
                     self.side_captured_path = captured_output_path
                     self.side_card.set_captured(image_path=output_path)
                 
-                # Update UI and show success message (same as capture)
+                # Update UI and show success notification (same as capture)
                 self._update_ui_state()
-                messagebox.showinfo("Success", f"{pose_type.title()} image uploaded and processed successfully!\n\nPose landmarks have been detected and applied.")
+                NotificationManager.show_success(
+                    self.master, 
+                    f"{pose_type.title()} image uploaded successfully! Pose landmarks detected."
+                )
                 
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to process uploaded image: {str(e)}")
@@ -1060,7 +1064,10 @@ class CapturePage(ctk.CTkFrame):
             
             self.after_idle(self._update_ui_state)
             self.after_idle(self._update_button_states)
-            self.after_idle(lambda: messagebox.showinfo("Success", f"{pose_type.title()} pose captured!"))
+            self.after_idle(lambda: NotificationManager.show_success(
+                self.master, 
+                f"{pose_type.title()} pose captured successfully!"
+            ))
             
         except Exception as e:
             self.after_idle(lambda: messagebox.showerror("Error", f"Failed to save image: {str(e)}"))
@@ -1127,6 +1134,73 @@ class CapturePage(ctk.CTkFrame):
     def on_hide(self):
         """Called when page is hidden"""
         self._stop_capture()
+    
+    def reset_capture_state(self):
+        """Reset all capture state - called when starting fresh analysis"""
+        try:
+            # Stop any active camera
+            self._stop_capture()
+            
+            # Reset capture flags
+            self.front_captured = False
+            self.side_captured = False
+            
+            # Clear image paths
+            self.front_image_path = None
+            self.side_image_path = None
+            self.front_captured_path = None
+            self.side_captured_path = None
+            
+            # Reset step to front pose
+            self.current_step = 1
+            
+            # Reset the capture cards if they exist
+            if hasattr(self, 'front_card') and self.front_card:
+                self.front_card.reset()
+            if hasattr(self, 'side_card') and self.side_card:
+                self.side_card.reset()
+            
+            # Update UI state
+            if self._content_loaded:
+                self._update_ui_state()
+                self._switch_to_step(1)
+            
+            # Clear any existing image files from previous sessions
+            self._clear_previous_images()
+            
+            print("Capture page state reset successfully")
+            
+        except Exception as e:
+            print(f"Error resetting capture state: {e}")
+    
+    def _clear_previous_images(self):
+        """Clear previous captured image files"""
+        try:
+            # Clear input files
+            input_files_to_clear = [
+                os.path.join(INPUT_FILES_DIR, "input_front.png"),
+                os.path.join(INPUT_FILES_DIR, "input_side.png")
+            ]
+            
+            for file_path in input_files_to_clear:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    print(f"Cleared: {file_path}")
+            
+            # Clear captured poses directory
+            captured_poses_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "database", "captured_poses")
+            if os.path.exists(captured_poses_dir):
+                for filename in os.listdir(captured_poses_dir):
+                    if filename.startswith("front_") or filename.startswith("side_"):
+                        file_path = os.path.join(captured_poses_dir, filename)
+                        try:
+                            os.remove(file_path)
+                            print(f"Cleared captured pose: {file_path}")
+                        except Exception as e:
+                            print(f"Could not remove {file_path}: {e}")
+                            
+        except Exception as e:
+            print(f"Error clearing previous images: {e}")
 
 
 # Test the improved capture page
