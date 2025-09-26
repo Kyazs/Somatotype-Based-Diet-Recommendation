@@ -108,11 +108,144 @@ def calculate_tdee(bmr, activity_level):
     return bmr * multiplier
 
 def generate_recommendations():
-    """Generate personalized recommendations"""
+    """Generate personalized recommendations using the template system"""
     try:
-        # Get user data
+        print("[INFO] Starting template-based recommendation generation...")
+        
+        # Import the template diet engine
+        from .template_diet_engine import TemplateDietEngine
+        
+        # Initialize template engine
+        template_engine = TemplateDietEngine()
+        
+        # Get user data and somatotype
         user_data, body_data = get_user_data_from_input()
-        somatotype = get_somatotype()
+        somatotype_data = {'Somatotype': get_somatotype()}
+        
+        print(f"[INFO] User data: {user_data}")
+        print(f"[INFO] Body data: {body_data}")
+        print(f"[INFO] Somatotype: {somatotype_data}")
+        
+        # Generate recommendations using template engine
+        recommendations = template_engine.create_recommendations()
+        
+        if not recommendations:
+            print("[WARNING] Template engine returned no recommendations, falling back to manual calculation...")
+            return generate_fallback_recommendations(user_data, body_data, somatotype_data)
+        
+        # Save recommendations in the expected format for the diet page
+        output_file = os.path.join(OUTPUT_FILES_DIR, "output_recommendation.csv")
+        
+        with open(output_file, mode="w", newline="") as file:
+            writer = csv.writer(file)
+            
+            # Write macro information
+            writer.writerow(["Macronutrient", "Value"])
+            writer.writerow(["calories", int(recommendations.get('total_calories', 2000))])
+            writer.writerow(["protein", int(recommendations.get('protein_g', 150))])
+            writer.writerow(["carbs", int(recommendations.get('carbs_g', 200))])
+            writer.writerow(["fat", int(recommendations.get('fats_g', 70))])
+            writer.writerow([])
+            
+            # Write meal recommendations
+            writer.writerow(["Meal Plan"])
+            
+            # Breakfast foods
+            if 'meals' in recommendations and 'breakfast' in recommendations['meals']:
+                writer.writerow(["Breakfast"])
+                for food in recommendations['meals']['breakfast']:
+                    food_name = food.get('name', str(food)) if isinstance(food, dict) else str(food)
+                    writer.writerow([food_name])
+                writer.writerow([])
+            
+            # Lunch foods
+            if 'meals' in recommendations and 'lunch' in recommendations['meals']:
+                writer.writerow(["Lunch"])
+                for food in recommendations['meals']['lunch']:
+                    food_name = food.get('name', str(food)) if isinstance(food, dict) else str(food)
+                    writer.writerow([food_name])
+                writer.writerow([])
+            
+            # Dinner foods
+            if 'meals' in recommendations and 'dinner' in recommendations['meals']:
+                writer.writerow(["Dinner"])
+                for food in recommendations['meals']['dinner']:
+                    food_name = food.get('name', str(food)) if isinstance(food, dict) else str(food)
+                    writer.writerow([food_name])
+                writer.writerow([])
+            
+            # Snack foods
+            if 'meals' in recommendations and 'snacks' in recommendations['meals']:
+                writer.writerow(["Snacks"])
+                for food in recommendations['meals']['snacks']:
+                    food_name = food.get('name', str(food)) if isinstance(food, dict) else str(food)
+                    writer.writerow([food_name])
+                writer.writerow([])
+            
+            # Diet principles
+            writer.writerow(["Diet Principles"])
+            diet_principles = recommendations.get('diet_principles', '')
+            if diet_principles:
+                for principle in diet_principles.split('|'):
+                    writer.writerow([principle.strip()])
+            
+            # Fitness strategy
+            if 'fitness_strategy' in recommendations:
+                writer.writerow([])
+                writer.writerow(["Fitness Strategy"])
+                writer.writerow([recommendations['fitness_strategy']])
+        
+        print("[SUCCESS] Template-based recommendations generated successfully!")
+        print(f"Template used: {recommendations.get('template_id', 'Unknown')}")
+        print(f"Somatotype: {recommendations.get('somatotype', 'Unknown')}")
+        print(f"Target Calories: {int(recommendations.get('total_calories', 2000))}")
+        print(f"Macros - Protein: {recommendations.get('protein_g', 0)}g, Carbs: {recommendations.get('carbs_g', 0)}g, Fat: {recommendations.get('fats_g', 0)}g")
+        
+        return True
+        
+    except Exception as e:
+        print(f"[ERROR] Error generating template-based recommendations: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Fallback to manual calculation
+        try:
+            print("[INFO] Attempting fallback recommendation generation...")
+            user_data, body_data = get_user_data_from_input()
+            somatotype_data = {'Somatotype': get_somatotype()}
+            return generate_fallback_recommendations(user_data, body_data, somatotype_data)
+        except Exception as fallback_error:
+            print(f"[ERROR] Fallback generation also failed: {fallback_error}")
+            return create_minimal_fallback()
+
+def create_minimal_fallback():
+    """Create a minimal fallback recommendation file"""
+    try:
+        output_file = os.path.join(OUTPUT_FILES_DIR, "output_recommendation.csv")
+        with open(output_file, mode="w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(["Macronutrient", "Value"])
+            writer.writerow(["calories", 2000])
+            writer.writerow(["protein", 150])
+            writer.writerow(["carbs", 200])
+            writer.writerow(["fat", 70])
+            writer.writerow([])
+            writer.writerow(["Suggested Foods"])
+            writer.writerow(["Grilled Chicken"])
+            writer.writerow(["Brown Rice"])
+            writer.writerow(["Vegetables"])
+            writer.writerow(["Greek Yogurt"])
+            writer.writerow(["Fruits"])
+        print("[SUCCESS] Minimal fallback recommendations created")
+        return True
+    except Exception as e:
+        print(f"[ERROR] Could not create minimal fallback: {e}")
+        return False
+
+def generate_fallback_recommendations(user_data, body_data, somatotype_data):
+    """Generate recommendations using manual calculation as fallback"""
+    try:
+        somatotype = somatotype_data.get('Somatotype', 'mesomorph').lower()
         
         # Extract key information
         age = int(user_data.get('Age', 25))
@@ -140,7 +273,7 @@ def generate_recommendations():
         elif 'endo' in somatotype:
             protein_ratio, carb_ratio, fat_ratio = 0.35, 0.30, 0.35
             target_calories -= 100  # Lower calorie needs
-        else:  # mesomorph
+        else:  # mesomorph or mixed types
             protein_ratio, carb_ratio, fat_ratio = 0.30, 0.40, 0.30
         
         # Calculate macros
@@ -148,64 +281,55 @@ def generate_recommendations():
         carbs_g = round((target_calories * carb_ratio) / 4)
         fat_g = round((target_calories * fat_ratio) / 9)
         
-        # Somatotype-based food recommendations
-        food_recommendations = {
-            'ectomorph': [
-                'Oats', 'Peanut Butter', 'Grilled Chicken', 'Brown Rice', 
-                'Protein Shake', 'Salmon', 'Sweet Potatoes', 'Nuts', 
-                'Whole Grain Bread', 'Greek Yogurt'
-            ],
-            'mesomorph': [
-                'Greek Yogurt', 'Chicken Breast', 'Quinoa', 'Turkey', 
-                'Whole Grain Bread', 'Lean Beef', 'Brown Rice', 'Eggs',
-                'Vegetables', 'Fruits'
-            ],
-            'endomorph': [
-                'Boiled Chicken', 'Steamed Vegetables', 'Protein Smoothie', 
-                'Grilled Tofu', 'Salad', 'Egg Whites', 'Fish', 'Broccoli',
-                'Spinach', 'Lean Proteins'
-            ]
-        }
-        
-        # Get food recommendations for this somatotype
-        foods = food_recommendations.get(somatotype, food_recommendations['mesomorph'])
-        
-        # Save recommendations
+        # Save fallback recommendations
         output_file = os.path.join(OUTPUT_FILES_DIR, "output_recommendation.csv")
-        
-        with open(output_file, mode="w", newline="", encoding='utf-8') as file:
+        with open(output_file, mode="w", newline="") as file:
             writer = csv.writer(file)
-            
-            # Macronutrients
             writer.writerow(["Macronutrient", "Value"])
             writer.writerow(["calories", int(target_calories)])
             writer.writerow(["protein", protein_g])
             writer.writerow(["carbs", carbs_g])
             writer.writerow(["fat", fat_g])
-            writer.writerow(["bmr", int(bmr)])
-            writer.writerow(["tdee", int(tdee)])
-            writer.writerow(["somatotype", somatotype])
             writer.writerow([])
             
-            # Food recommendations
             writer.writerow(["Suggested Foods"])
+            # Basic somatotype-based food recommendations
+            
+            # Somatotype-based food recommendations
+            food_recommendations = {
+                'ectomorph': [
+                    'Oats', 'Peanut Butter', 'Grilled Chicken', 'Brown Rice', 
+                    'Protein Shake', 'Salmon', 'Sweet Potatoes', 'Nuts'
+                ],
+                'mesomorph': [
+                    'Greek Yogurt', 'Chicken Breast', 'Quinoa', 'Turkey', 
+                    'Lean Beef', 'Brown Rice', 'Eggs', 'Vegetables'
+                ],
+                'endomorph': [
+                    'Boiled Chicken', 'Steamed Vegetables', 'Protein Smoothie', 
+                    'Grilled Fish', 'Salad', 'Egg Whites', 'Broccoli'
+                ]
+            }
+            
+            # Get appropriate foods for this somatotype
+            foods = food_recommendations.get(somatotype, food_recommendations['mesomorph'])
             for food in foods:
                 writer.writerow([food])
-            writer.writerow([])
             
-            # Nutrition insights
-            writer.writerow(["Nutrition Insights"])
-            writer.writerow([f"Your {somatotype} body type benefits from {protein_ratio*100:.0f}% protein, {carb_ratio*100:.0f}% carbs, {fat_ratio*100:.0f}% fat"])
-            writer.writerow([f"Target: {int(target_calories)} calories daily"])
+            writer.writerow([])
+            writer.writerow(["Diet Principles"])
             
             if 'ecto' in somatotype:
                 writer.writerow(["Focus on calorie-dense foods and strength training"])
+                writer.writerow(["Don't skip meals - eat frequently"])
             elif 'endo' in somatotype:
                 writer.writerow(["Emphasize protein and control carbohydrate portions"])
+                writer.writerow(["Focus on whole foods and avoid processed foods"])
             else:
                 writer.writerow(["Maintain balanced nutrition with variety"])
+                writer.writerow(["Combine strength training with cardio"])
         
-        print("[SUCCESS] Recommendations generated successfully!")
+        print("[SUCCESS] Fallback recommendations generated successfully!")
         print(f"Somatotype: {somatotype.title()}")
         print(f"Target Calories: {int(target_calories)}")
         print(f"Macros - Protein: {protein_g}g, Carbs: {carbs_g}g, Fat: {fat_g}g")
@@ -213,31 +337,9 @@ def generate_recommendations():
         return True
         
     except Exception as e:
-        print(f"[ERROR] Error generating recommendations: {e}")
+        print(f"[ERROR] Error generating fallback recommendations: {e}")
         import traceback
         traceback.print_exc()
-        
-        # Create a minimal fallback recommendation file
-        try:
-            output_file = os.path.join(OUTPUT_FILES_DIR, "output_recommendation.csv")
-            with open(output_file, mode="w", newline="") as file:
-                writer = csv.writer(file)
-                writer.writerow(["Macronutrient", "Value"])
-                writer.writerow(["calories", 2000])
-                writer.writerow(["protein", 150])
-                writer.writerow(["carbs", 200])
-                writer.writerow(["fat", 70])
-                writer.writerow([])
-                writer.writerow(["Suggested Foods"])
-                writer.writerow(["Grilled Chicken"])
-                writer.writerow(["Brown Rice"])
-                writer.writerow(["Vegetables"])
-                writer.writerow(["Greek Yogurt"])
-                writer.writerow(["Fruits"])
-            print("[SUCCESS] Fallback recommendations created")
-        except:
-            pass
-        
         return False
 
 if __name__ == "__main__":

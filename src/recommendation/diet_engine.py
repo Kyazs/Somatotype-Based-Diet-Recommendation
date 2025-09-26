@@ -2,14 +2,8 @@
 """
 Advanced Diet Recommendation Engine
 
-This module provides comprehensive diet recommendations based on:
-1. Somatotype classification (from output_classification.csv)
-2. User goals and preferences (from input_info_recommendation.csv)
-3. Body measurements and anthropometric data (from output_data_avatar_male_fromImg.csv)
-4. FNDDS processed food database (optimized_diet_recommendation_database.csv)
-
-The engine calculates personalized macronutrient targets and selects optimal foods
-based on somatotype-specific nutrition science and user goals.
+This module provides comprehensive diet recommendations using template-based approach.
+Now integrates with the TemplateDietEngine for simplified, template-based recommendations.
 """
 
 import pandas as pd
@@ -25,62 +19,23 @@ sys.path.append(PROJECT_DIR)
 
 from src.utils.utils import OUTPUT_FILES_DIR
 
+# Import the template diet engine
+from .template_diet_engine import TemplateDietEngine
+
 class DietRecommendationEngine:
     """
-    Advanced diet recommendation system using real user data and comprehensive food database
+    Advanced diet recommendation system using template-based approach
     """
     
     def __init__(self):
-        """Initialize the diet recommendation engine"""
-        self.user_data = None
-        self.body_measurements = None
-        self.somatotype_data = None
-        self.food_database = None
+        """Initialize the diet recommendation engine with template engine"""
+        print("INFO - Initializing Diet Recommendation Engine...")
         
-        # Load all necessary data
-        self._load_data()
+        # Initialize template engine
+        self.template_engine = TemplateDietEngine()
+        self.last_recommendations = None
         
-        # Somatotype-specific nutrition parameters
-        self.somatotype_nutrition_profiles = {
-            'ectomorph': {
-                'calorie_surplus': 300,      # Higher calorie needs
-                'protein_ratio': 0.25,       # 25% of calories from protein
-                'carbs_ratio': 0.50,         # 50% of calories from carbs  
-                'fat_ratio': 0.25,           # 25% of calories from fat
-                'meal_frequency': 5,         # More frequent meals
-                'preferred_categories': ['complex_carbs', 'healthy_fats', 'complete_proteins'],
-                'avoid_categories': [],
-                'portion_multiplier': 1.2    # Larger portions
-            },
-            'mesomorph': {
-                'calorie_surplus': 200,      # Moderate calorie adjustment
-                'protein_ratio': 0.30,       # 30% of calories from protein
-                'carbs_ratio': 0.40,         # 40% of calories from carbs
-                'fat_ratio': 0.30,           # 30% of calories from fat
-                'meal_frequency': 4,         # Balanced meal frequency
-                'preferred_categories': ['lean_proteins', 'complex_carbs', 'healthy_fats'],
-                'avoid_categories': [],
-                'portion_multiplier': 1.0    # Standard portions
-            },
-            'endomorph': {
-                'calorie_surplus': -200,     # Calorie deficit tendency
-                'protein_ratio': 0.35,       # 35% of calories from protein
-                'carbs_ratio': 0.30,         # 30% of calories from carbs
-                'fat_ratio': 0.35,           # 35% of calories from fat
-                'meal_frequency': 4,         # Controlled meal frequency
-                'preferred_categories': ['lean_proteins', 'vegetables', 'healthy_fats'],
-                'avoid_categories': ['simple_carbs'],
-                'portion_multiplier': 0.9    # Smaller portions for weight control
-            }
-        }
-        
-        # Goal-specific adjustments
-        self.goal_adjustments = {
-            'lose_weight': {'calorie_adjustment': -500, 'protein_boost': 0.05},
-            'gain_weight': {'calorie_adjustment': 500, 'carbs_boost': 0.05},
-            'maintain_weight': {'calorie_adjustment': 0, 'balanced': True},
-            'build_muscle': {'calorie_adjustment': 300, 'protein_boost': 0.10}
-        }
+        print("OK - Diet Recommendation Engine initialized with template engine")
     
     def _load_data(self):
         """Load all necessary data files"""
@@ -754,7 +709,7 @@ class DietRecommendationEngine:
 
     def save_recommendations_to_csv(self, output_path: str = None) -> str:
         """
-        Save comprehensive recommendations to CSV file in the expected format
+        Save comprehensive recommendations to CSV file using template engine
         
         Args:
             output_path: Path to save the CSV file. If None, uses default output location
@@ -766,43 +721,89 @@ class DietRecommendationEngine:
             output_path = os.path.join(OUTPUT_FILES_DIR, "output_recommendation.csv")
         
         try:
-            # Generate comprehensive recommendations
-            recommendations = self.generate_comprehensive_recommendations()
-            meal_recommendations = self.generate_meal_based_recommendations()
+            print("INFO - Generating CSV recommendations using template engine...")
             
-            # Extract macronutrient data
-            macros = recommendations.get('macros', {})
+            # Use template engine to create recommendations
+            recommendations = self.template_engine.create_recommendations()
             
-            # Create CSV content
+            if not recommendations:
+                print("ERROR - No recommendations generated")
+                return None
+                
+            self.last_recommendations = recommendations
+            
+            # Create CSV content in expected format
             lines = []
             
             # Macronutrients section
-            lines.append(f"calories,{macros.get('calories', 2000)}")
+            macros = recommendations.get('macronutrients', {})
+            lines.append(f"calories,{recommendations.get('total_calories', 2000)}")
             lines.append(f"protein,{macros.get('protein_g', 150)}")
             lines.append(f"carbs,{macros.get('carbs_g', 200)}")
-            lines.append(f"fat,{macros.get('fat_g', 80)}")
-            lines.append(f"bmr,{macros.get('bmr', 1500)}")
-            lines.append(f"tdee,{macros.get('tdee', 2000)}")
-            lines.append(f"somatotype,{macros.get('somatotype', 'mesomorph')}")
+            lines.append(f"fat,{macros.get('fats_g', 80)}")
+            lines.append(f"bmr,{int(recommendations.get('total_calories', 2000) * 0.75)}")
+            lines.append(f"tdee,{recommendations.get('total_calories', 2000)}")
+            lines.append(f"somatotype,ectomorph")
             lines.append("")
             
             # Suggested Foods section
             lines.append("Suggested Foods")
             
-            # Add foods from all meal categories
+            # Add foods from meal recommendations
+            meals = recommendations.get('meals', {})
             food_count = 0
-            max_foods = 20  # Limit to prevent too many foods
+            max_foods = 20
             
-            for meal_type, foods in meal_recommendations.items():
+            for meal_type, meal_data in meals.items():
+                foods = meal_data.get('foods', [])
                 for food in foods[:5]:  # Max 5 foods per meal type
                     if food_count >= max_foods:
                         break
-                    food_name = food.get('Food_Item', 'Unknown Food')
-                    category = food.get('Enhanced_Category', 'general').replace('_', ' ').title()
-                    lines.append(f"{food_name} ({category})")
+                    lines.append(food)
                     food_count += 1
                 if food_count >= max_foods:
                     break
+            
+            lines.append("")
+            
+            # Nutrition Insights section
+            lines.append("Nutrition Insights")
+            
+            description = recommendations.get('description', 'Personalized nutrition plan')
+            lines.append(description)
+            
+            # Add diet principles
+            principles = recommendations.get('diet_principles', [])
+            for principle in principles[:5]:  # Max 5 principles
+                lines.append(principle)
+            
+            # Exercise information
+            exercises = recommendations.get('exercises', {})
+            if exercises:
+                lines.append("")
+                lines.append("Exercise Recommendations")
+                lines.append(f"Strength training: {exercises.get('strength_days', 3)} days/week")
+                lines.append(f"Cardio training: {exercises.get('cardio_days', 2)} days/week")
+                
+                bodyweight_exercises = exercises.get('bodyweight_exercises', [])
+                if bodyweight_exercises:
+                    lines.append("Bodyweight exercises:")
+                    for exercise in bodyweight_exercises[:5]:
+                        lines.append(f"- {exercise}")
+            
+            # Write to file
+            with open(output_path, 'w', newline='', encoding='utf-8') as f:
+                for line in lines:
+                    f.write(line + '\n')
+            
+            print(f"OK - CSV recommendations saved to: {output_path}")
+            return output_path
+            
+        except Exception as e:
+            print(f"ERROR - Failed to save recommendations to CSV: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
             
             lines.append("")
             
@@ -857,7 +858,7 @@ class DietRecommendationEngine:
     
     def save_meal_recommendations_to_json(self, output_path: str = None) -> str:
         """
-        Save meal-based recommendations to JSON file for database storage
+        Save meal-based recommendations to JSON file using template engine
         
         Args:
             output_path: Path to save the JSON file. If None, uses default output location
@@ -871,61 +872,44 @@ class DietRecommendationEngine:
         try:
             import json
             
-            # Generate meal recommendations
-            meal_recommendations = self.generate_meal_based_recommendations()
+            print("INFO - Generating JSON meal recommendations using template engine...")
             
-            # Convert to serializable format
-            serializable_meals = {}
-            for meal_type, foods in meal_recommendations.items():
-                serializable_meals[meal_type] = []
-                for food in foods:
-                    food_dict = {}
-                    for key, value in food.items():
-                        # Convert numpy types and handle NaN values
-                        if pd.isna(value):
-                            food_dict[key] = None
-                        elif hasattr(value, 'item'):  # numpy types
-                            food_dict[key] = value.item()
-                        else:
-                            food_dict[key] = value
-                    serializable_meals[meal_type].append(food_dict)
+            # Get recommendations from template engine or use cached ones
+            if not self.last_recommendations:
+                recommendations = self.template_engine.create_recommendations()
+                self.last_recommendations = recommendations
+            else:
+                recommendations = self.last_recommendations
             
-            # Write to file
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            with open(output_path, 'w') as f:
-                json.dump(serializable_meals, f, indent=2)
+            if not recommendations:
+                print("ERROR - No recommendations to save")
+                return None
             
-            print(f"✅ Saved meal recommendations to {output_path}")
+            # Save to JSON file
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(recommendations, f, indent=2)
+                
+            print(f"OK - JSON meal recommendations saved to: {output_path}")
             return output_path
             
         except Exception as e:
-            print(f"❌ Error saving meal recommendations to JSON: {e}")
-            raise
+            print(f"ERROR - Failed to save meal recommendations to JSON: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
 
 # Example usage and testing
 if __name__ == "__main__":
     print("Initializing Diet Recommendation Engine...")
     engine = DietRecommendationEngine()
     
-    print("Generating comprehensive recommendations...")
-    recommendations = engine.generate_comprehensive_recommendations()
+    print("Testing CSV generation...")
+    csv_path = engine.save_recommendations_to_csv()
+    if csv_path:
+        print(f"SUCCESS - CSV saved to: {csv_path}")
     
-    print("\n=== PERSONALIZED DIET RECOMMENDATIONS ===")
-    print(f"Somatotype: {recommendations['macros']['somatotype'].title()}")
-    print(f"Goal: {recommendations['macros']['goal'].replace('_', ' ').title()}")
-    print(f"Activity Level: {recommendations['macros']['activity_level'].title()}")
-    
-    print(f"\n=== DAILY MACRONUTRIENT TARGETS ===")
-    macros = recommendations['macros']
-    print(f"Calories: {macros['calories']} kcal")
-    print(f"Protein: {macros['protein_g']}g ({macros['protein_g']*4/macros['calories']*100:.1f}%)")
-    print(f"Carbohydrates: {macros['carbs_g']}g ({macros['carbs_g']*4/macros['calories']*100:.1f}%)")
-    print(f"Fat: {macros['fat_g']}g ({macros['fat_g']*9/macros['calories']*100:.1f}%)")
-    
-    print(f"\n=== RECOMMENDED FOODS ===")
-    for i, food in enumerate(recommendations['recommended_foods'][:10], 1):
-        print(f"{i}. {food['name']} ({food['category']}) - {food['calories_per_100g']} cal/100g")
-    
-    print(f"\n=== NUTRITION INSIGHTS ===")
-    for insight in recommendations['nutrition_insights']:
-        print(f"• {insight}")
+    print("Testing JSON generation...")
+    json_path = engine.save_meal_recommendations_to_json()
+    if json_path:
+        print(f"SUCCESS - JSON saved to: {json_path}")
