@@ -573,34 +573,19 @@ class CapturePage(ctk.CTkFrame):
         self._update_ui_state()
     
     def _create_header(self):
-        """Create clean header with title and back button"""
+        """Create clean header with title"""
         self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.header_frame.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 0))
-        self.header_frame.grid_columnconfigure(1, weight=1)
+        self.header_frame.grid_columnconfigure(0, weight=1)
         
-        # Back button
-        self.back_button = ctk.CTkButton(
-            self.header_frame,
-            text="← Back",
-            font=ctk.CTkFont(size=14),
-            width=80,
-            height=32,
-            corner_radius=16,
-            fg_color="transparent",
-            text_color=ThemeManager.GRAY_DARK,
-            hover_color=ThemeManager.GRAY_LIGHT,
-            command=self._go_back
-        )
-        self.back_button.grid(row=0, column=0, sticky="w")
-        
-        # Title
+        # Title (centered)
         self.title_label = ctk.CTkLabel(
             self.header_frame,
             text="Body Capture",
             font=ctk.CTkFont(size=32, weight="bold"),
             text_color=ThemeManager.GRAY_DARK
         )
-        self.title_label.grid(row=0, column=1)
+        self.title_label.grid(row=0, column=0)
     
     def _create_step_indicator(self):
         """Create step indicator"""

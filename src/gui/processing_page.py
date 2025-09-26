@@ -583,28 +583,28 @@ class ProcessingPage(ctk.CTkFrame):
         )
         self.title_label.grid(row=0, column=0, sticky="w")
         
-        # Subtle cancel button - gray outline, smaller, less prominent
+        # Cancel button with blue border and rounded design
         self.cancel_button = ctk.CTkButton(
             self.header_frame,
             text="Cancel",
             command=self.cancel_processing,
-            font=ThemeManager.get_small_font(),
+            font=ctk.CTkFont(size=14),
             fg_color="transparent",
-            text_color=ThemeManager.GRAY_MEDIUM,
+            text_color=ThemeManager.PRIMARY_COLOR,
             hover_color=ThemeManager.GRAY_LIGHT,
-            corner_radius=6,
+            corner_radius=18,
             border_width=1,
-            border_color=ThemeManager.GRAY_MEDIUM,
-            width=70,
-            height=28
+            border_color=ThemeManager.PRIMARY_COLOR,
+            width=80,
+            height=36
         )
         self.cancel_button.grid(row=0, column=1, sticky="e")
         
         # Add tooltip effect for cancel button
         def show_tooltip(event):
-            self.cancel_button.configure(text_color=ThemeManager.GRAY_DARK)
+            self.cancel_button.configure(text_color=ThemeManager.PRIMARY_COLOR)
         def hide_tooltip(event):
-            self.cancel_button.configure(text_color=ThemeManager.GRAY_MEDIUM)
+            self.cancel_button.configure(text_color=ThemeManager.PRIMARY_COLOR)
             
         self.cancel_button.bind("<Enter>", show_tooltip)
         self.cancel_button.bind("<Leave>", hide_tooltip)
@@ -1176,7 +1176,7 @@ class ProcessingPage(ctk.CTkFrame):
         
         # Reset cancel button
         if hasattr(self, 'cancel_button'):
-            self.cancel_button.configure(text="Cancel", text_color=ThemeManager.GRAY_MEDIUM)
+            self.cancel_button.configure(text="Cancel", text_color=ThemeManager.PRIMARY_COLOR)
         
         # Reset all steps to waiting state
         if hasattr(self, 'processing_steps'):

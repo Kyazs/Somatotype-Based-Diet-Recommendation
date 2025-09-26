@@ -49,9 +49,13 @@ class HistoryPage(ctk.CTkFrame):
         
     def _init_content_layout(self):
         """Initialize the full content layout"""
-        # Configure main grid
+        # Configure main grid with better weight distribution
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(2, weight=1)
+        self.grid_rowconfigure(0, weight=0)  # Header
+        self.grid_rowconfigure(1, weight=0)  # Stats
+        self.grid_rowconfigure(2, weight=0)  # Content header
+        self.grid_rowconfigure(3, weight=1)  # Scrollable content
+        self.grid_rowconfigure(4, weight=0)  # Footer
         
         # Header section
         self._create_header()
@@ -68,7 +72,7 @@ class HistoryPage(ctk.CTkFrame):
     def _create_header(self):
         """Create page header with title and controls"""
         self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.header_frame.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 0))
+        self.header_frame.grid(row=0, column=0, sticky="ew", padx=24, pady=(20, 16))
         self.header_frame.grid_columnconfigure(1, weight=1)
         
         # Back button
@@ -80,8 +84,10 @@ class HistoryPage(ctk.CTkFrame):
             height=32,
             corner_radius=16,
             fg_color="transparent",
-            text_color=ThemeManager.GRAY_DARK,
+            text_color=ThemeManager.PRIMARY_COLOR,
             hover_color=ThemeManager.GRAY_LIGHT,
+            border_width=1,
+            border_color=ThemeManager.PRIMARY_COLOR,
             command=self._go_back
         )
         self.back_button.grid(row=0, column=0, sticky="w")
@@ -123,7 +129,7 @@ class HistoryPage(ctk.CTkFrame):
     def _create_stats_section(self):
         """Create statistics cards section"""
         self.stats_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.stats_frame.grid(row=1, column=0, sticky="ew", padx=32, pady=24)
+        self.stats_frame.grid(row=1, column=0, sticky="ew", padx=24, pady=(16, 20))
         self.stats_frame.grid_columnconfigure((0, 1, 2), weight=1)
         
         # Total analyses card
@@ -195,13 +201,13 @@ class HistoryPage(ctk.CTkFrame):
         """Create scrollable content section for history items"""
         # Content header
         self.content_header = ctk.CTkFrame(self, fg_color="transparent")
-        self.content_header.grid(row=2, column=0, sticky="ew", padx=32, pady=(0, 16))
+        self.content_header.grid(row=2, column=0, sticky="ew", padx=24, pady=(0, 12))
         self.content_header.grid_columnconfigure(1, weight=1)
         
         self.content_title = ctk.CTkLabel(
             self.content_header,
             text="Recent Analyses",
-            font=ctk.CTkFont(size=18, weight="bold"),
+            font=ctk.CTkFont(size=20, weight="bold"),
             text_color=ThemeManager.GRAY_DARK
         )
         self.content_title.grid(row=0, column=0, sticky="w")
@@ -210,14 +216,14 @@ class HistoryPage(ctk.CTkFrame):
         self.filter_frame = ctk.CTkFrame(self.content_header, fg_color="transparent")
         self.filter_frame.grid(row=0, column=1, sticky="e")
         
-        # Scrollable history list
+        # Scrollable history list with improved spacing
         self.history_scrollable = ctk.CTkScrollableFrame(
             self,
             fg_color=ThemeManager.SECONDARY_COLOR,
-            corner_radius=0,  # Reduces rendering overhead
-            border_width=0   # Reduces border redraw issues
+            corner_radius=12,
+            border_width=0
         )
-        self.history_scrollable.grid(row=3, column=0, sticky="nsew", padx=32, pady=(0, 24))
+        self.history_scrollable.grid(row=3, column=0, sticky="nsew", padx=24, pady=(0, 20))
         self.history_scrollable.grid_columnconfigure(0, weight=1)
         
         # Add scroll throttling to prevent UI distortion
@@ -232,7 +238,7 @@ class HistoryPage(ctk.CTkFrame):
     def _create_footer(self):
         """Create footer with navigation buttons"""
         self.footer_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.footer_frame.grid(row=4, column=0, sticky="ew", padx=32, pady=(0, 24))
+        self.footer_frame.grid(row=4, column=0, sticky="ew", padx=24, pady=(12, 20))
         self.footer_frame.grid_columnconfigure(1, weight=1)
         
         # Clear history button
@@ -399,7 +405,7 @@ class HistoryPage(ctk.CTkFrame):
             border_color=ThemeManager.GRAY_LIGHT,
             height=120
         )
-        item_frame.grid(row=index, column=0, sticky="ew", pady=8, padx=20)
+        item_frame.grid(row=index, column=0, sticky="ew", pady=6, padx=16)
         item_frame.grid_propagate(False)
         item_frame.grid_columnconfigure(2, weight=1)
         

@@ -78,6 +78,7 @@ class HistoryDetailPage(ctk.CTkFrame):
             font=ctk.CTkFont(size=14),
             width=80,
             height=36,
+            corner_radius=18,
             fg_color=ThemeManager.SECONDARY_COLOR,
             text_color=ThemeManager.PRIMARY_COLOR,
             hover_color=ThemeManager.GRAY_LIGHT,

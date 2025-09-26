@@ -2296,29 +2296,12 @@ class DietPage(ctk.CTkFrame):
         """Create page header with navigation and title"""
         self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.header_frame.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 0))
-        self.header_frame.grid_columnconfigure(1, weight=1)
-        self.header_frame.grid_columnconfigure((2, 3), weight=0)  # Make buttons fixed width
+        self.header_frame.grid_columnconfigure(0, weight=1)
+        self.header_frame.grid_columnconfigure((1, 2), weight=0)  # Make buttons fixed width
         
-        # Back button with arrow
-        self.back_button = ctk.CTkButton(
-            self.header_frame,
-            text="← Back to Processing",
-            font=ctk.CTkFont(size=14),
-            width=160,
-            height=32,
-            corner_radius=16,
-            fg_color="transparent",
-            text_color=ThemeManager.GRAY_DARK,
-            hover_color=ThemeManager.GRAY_LIGHT,
-            border_width=1,
-            border_color=ThemeManager.GRAY_LIGHT,
-            command=self._go_back
-        )
-        self.back_button.grid(row=0, column=0, sticky="w")
-        
-        # Title section
+        # Title section (now centered)
         self.title_section = ctk.CTkFrame(self.header_frame, fg_color="transparent")
-        self.title_section.grid(row=0, column=1, sticky="")
+        self.title_section.grid(row=0, column=0, sticky="")
         
         self.title_label = ctk.CTkLabel(
             self.title_section,
@@ -2349,7 +2332,7 @@ class DietPage(ctk.CTkFrame):
             hover_color=ThemeManager.PRIMARY_HOVER,
             command=self._go_to_history
         )
-        self.history_button.grid(row=0, column=2, sticky="e", padx=(0, 10))
+        self.history_button.grid(row=0, column=1, sticky="e", padx=(0, 10))
         
         # Export button
         self.export_button = ctk.CTkButton(
@@ -2363,7 +2346,7 @@ class DietPage(ctk.CTkFrame):
             hover_color="#0d9668",  # Darker green for hover
             command=self._export_diet_plan
         )
-        self.export_button.grid(row=0, column=3, sticky="e")
+        self.export_button.grid(row=0, column=2, sticky="e")
         
     def _create_content_area(self):
         """Create main content area with scrollable container"""
@@ -2874,13 +2857,6 @@ class DietPage(ctk.CTkFrame):
             
         except Exception as e:
             print(f"Error showing error dialog: {e}")
-            
-    def _go_back(self):
-        """Go back to processing page"""
-        try:
-            self.controller.show_frame("ProcessingPage")
-        except Exception as e:
-            print(f"Error going back: {e}")
             
     def _go_to_history(self):
         """Go to history page"""

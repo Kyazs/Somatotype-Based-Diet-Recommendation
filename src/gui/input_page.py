@@ -63,11 +63,20 @@ class InputPage(ctk.CTkFrame):
         self.header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 20))
         self.header_frame.grid_columnconfigure(1, weight=1)
         
-        # Back button
-        self.back_button = ThemeManager.create_secondary_button(
+        # Back button with rounded design
+        self.back_button = ctk.CTkButton(
             self.header_frame,
-            "← Back",
-            lambda: self.controller.show_frame("LandingPage")
+            text="← Back",
+            font=ctk.CTkFont(size=14),
+            width=80,
+            height=36,
+            corner_radius=18,
+            fg_color="transparent",
+            text_color=ThemeManager.PRIMARY_COLOR,
+            hover_color=ThemeManager.GRAY_LIGHT,
+            border_width=1,
+            border_color=ThemeManager.PRIMARY_COLOR,
+            command=lambda: self.controller.show_frame("LandingPage")
         )
         self.back_button.grid(row=0, column=0, padx=(0, 20))
         
