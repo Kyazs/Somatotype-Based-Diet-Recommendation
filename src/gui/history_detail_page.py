@@ -283,22 +283,21 @@ class HistoryDetailPage(ctk.CTkFrame):
         self.soma_visual = None
         
     def _create_diet_section(self):
-        """Create diet recommendations section"""
-        # Diet principles section
+        """Create diet recommendations section with improved two-column layout"""
+        # Diet principles and fitness strategy in two columns
         self.diet_principles = DietPrinciples(self.content_scroll)
-        self.diet_principles.grid(row=4, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        self.diet_principles.grid(row=4, column=0, sticky="nsew", pady=(0, 15), padx=(0, 10))
         
-        # Fitness strategy section
         self.fitness_strategy = FitnessStrategy(self.content_scroll)
-        self.fitness_strategy.grid(row=5, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        self.fitness_strategy.grid(row=4, column=1, sticky="nsew", pady=(0, 15), padx=(10, 0))
         
-        # Meal recommendations section with food click callback
+        # Meal recommendations section with food click callback (full width)
         self.meal_recommendations = HistoryMealBasedFoodRecommendations(self.content_scroll)
-        self.meal_recommendations.grid(row=6, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        self.meal_recommendations.grid(row=5, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
         
-        # Exercise recommendations section
+        # Exercise recommendations section (full width)
         self.exercise_recommendations = HistoryExerciseRecommendations(self.content_scroll)
-        self.exercise_recommendations.grid(row=7, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        self.exercise_recommendations.grid(row=6, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
         
     def load_record_data(self, record_data):
         """Load and display data from a history record"""
@@ -473,6 +472,7 @@ class HistoryDetailPage(ctk.CTkFrame):
                     ectomorph = float(soma_data.get('ectomorph_score', 33.3))
                     mesomorph = float(soma_data.get('mesomorph_score', 33.3))
                     endomorph = float(soma_data.get('endomorph_score', 33.3))
+                    somatotype_class = soma_data.get('somatotype_class', 'Balanced')
                     
                     # Create or update somatotype visualization
                     if self.soma_visual:
@@ -482,7 +482,8 @@ class HistoryDetailPage(ctk.CTkFrame):
                         self.soma_frame,
                         ectomorph=ectomorph,
                         mesomorph=mesomorph,
-                        endomorph=endomorph
+                        endomorph=endomorph,
+                        somatotype_class=somatotype_class
                     )
                     self.soma_visual.grid(row=0, column=0, sticky="nsew", padx=15, pady=15)
                     

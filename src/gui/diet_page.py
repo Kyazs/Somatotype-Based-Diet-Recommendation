@@ -25,7 +25,7 @@ from src.utils.exercise_data_loader import get_exercise_loader
 
 
 class MacronutrientChart(ctk.CTkFrame):
-    """Custom macronutrient ratio chart with labels"""
+    """Custom macronutrient ratio chart with labels and icons"""
     
     def __init__(self, parent, protein=30, carbs=45, fat=25):
         super().__init__(parent, fg_color="transparent")
@@ -41,26 +41,27 @@ class MacronutrientChart(ctk.CTkFrame):
         self.grid_rowconfigure(1, weight=0) # Bar
         self.grid_rowconfigure(2, weight=0) # Legend
         
-        # Chart title
+        # Chart title with bigger font and better prominence
         self.chart_title = ctk.CTkLabel(
             self,
             text="Daily Macronutrient Distribution",
-            font=ThemeManager.get_subtitle_font(),
+            font=ctk.CTkFont(size=24, weight="bold"),
             text_color=ThemeManager.PRIMARY_COLOR
         )
-        self.chart_title.grid(row=0, column=0, pady=(0, 10))
+        self.chart_title.grid(row=0, column=0, pady=(0, 15))
         
         # Macro bar container
-        self.bar_container = ctk.CTkFrame(self, corner_radius=8, fg_color=ThemeManager.GRAY_LIGHT)
-        self.bar_container.grid(row=1, column=0, sticky="ew", pady=(0, 10))
+        self.bar_container = ctk.CTkFrame(self, corner_radius=12, fg_color=ThemeManager.GRAY_LIGHT, height=40)
+        self.bar_container.grid(row=1, column=0, sticky="ew", pady=(0, 15))
+        self.bar_container.grid_propagate(False)
         
-        # Create the segments
+        # Create the segments with improved styling
         # Protein (left segment)
         self.protein_fill = ctk.CTkFrame(
             self.bar_container, 
             fg_color=ThemeManager.SUCCESS_COLOR,
-            corner_radius=8,
-            height=28
+            corner_radius=12,
+            height=40
         )
         self.protein_fill.place(relx=0, rely=0, relwidth=self.protein/100, relheight=1)
         
@@ -69,7 +70,7 @@ class MacronutrientChart(ctk.CTkFrame):
             self.bar_container, 
             fg_color=ThemeManager.WARNING_COLOR,
             corner_radius=0,
-            height=28
+            height=40
         )
         self.carbs_fill.place(relx=self.protein/100, rely=0, relwidth=self.carbs/100, relheight=1)
         
@@ -78,58 +79,74 @@ class MacronutrientChart(ctk.CTkFrame):
             self.bar_container, 
             fg_color=ThemeManager.PRIMARY_COLOR,
             corner_radius=0,
-            height=28
+            height=40
         )
         self.fat_fill.place(relx=(self.protein + self.carbs)/100, rely=0, 
                            relwidth=self.fat/100, relheight=1)
         
         # Add right rounded corner to fat segment if it's at the end
         if abs(self.protein + self.carbs + self.fat - 100) < 0.1:  # Roughly 100%
-            self.fat_fill.configure(corner_radius=8)
+            self.fat_fill.configure(corner_radius=12)
         
-        # Legend frame
+        # Legend frame with better spacing
         self.legend_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.legend_frame.grid(row=2, column=0, sticky="ew")
         self.legend_frame.grid_columnconfigure((0, 1, 2), weight=1)
         
-        # Protein legend
+        # Protein legend with icon
         self.protein_legend = self._create_legend_item(
             self.legend_frame, 
             ThemeManager.SUCCESS_COLOR, 
+            "🥩",
             f"Protein: {self.protein}%",
             0
         )
         
-        # Carbs legend
+        # Carbs legend with icon
         self.carbs_legend = self._create_legend_item(
             self.legend_frame, 
             ThemeManager.WARNING_COLOR, 
+            "🍞",
             f"Carbs: {self.carbs}%",
             1
         )
         
-        # Fat legend
+        # Fat legend with icon
         self.fat_legend = self._create_legend_item(
             self.legend_frame, 
             ThemeManager.PRIMARY_COLOR, 
+            "🥑",
             f"Fat: {self.fat}%",
             2
         )
     
-    def _create_legend_item(self, parent, color, text, column):
-        """Create a legend item with color indicator and text"""
+    def _create_legend_item(self, parent, color, icon, text, column):
+        """Create a legend item with icon, color indicator and text"""
         frame = ctk.CTkFrame(parent, fg_color="transparent")
         frame.grid(row=0, column=column, padx=5, pady=5)
+        frame.grid_columnconfigure(0, weight=0)
+        frame.grid_columnconfigure(1, weight=0)
+        frame.grid_columnconfigure(2, weight=1)
         
+        # Icon
+        icon_label = ctk.CTkLabel(
+            frame, 
+            text=icon, 
+            font=ctk.CTkFont(size=16)
+        )
+        icon_label.grid(row=0, column=0, padx=(0, 5))
+        
+        # Color indicator
         indicator = ctk.CTkFrame(frame, width=12, height=12, fg_color=color, corner_radius=6)
-        indicator.grid(row=0, column=0, padx=(0, 5))
+        indicator.grid(row=0, column=1, padx=(0, 5))
         
+        # Text label
         label = ctk.CTkLabel(
             frame, 
             text=text, 
-            font=ThemeManager.get_small_font()
+            font=ctk.CTkFont(size=14, weight="bold")
         )
-        label.grid(row=0, column=1)
+        label.grid(row=0, column=2, sticky="w")
         
         return frame
     
@@ -151,100 +168,189 @@ class MacronutrientChart(ctk.CTkFrame):
 
 
 class SomatotypeVisual(ctk.CTkFrame):
-    """Custom visualization for the user's somatotype"""
+    """Custom visualization for the user's somatotype with enhanced two-column layout"""
     
-    def __init__(self, parent, ectomorph=33, mesomorph=33, endomorph=34, somatotype_class="Balanced"):
+    def __init__(self, parent, ectomorph=33, mesomorph=33, endomorph=34, somatotype_class=None):
         super().__init__(parent, fg_color="transparent")
         
         # Save the values
         self.ectomorph = ectomorph
         self.mesomorph = mesomorph
         self.endomorph = endomorph
-        self.somatotype_class = somatotype_class
         
-        # Configure grid
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=0)  # Title
-        self.grid_rowconfigure(1, weight=0)  # Classification
-        self.grid_rowconfigure(2, weight=1)  # Content
+        # Determine somatotype class if not provided
+        if somatotype_class is None:
+            self.somatotype_class = self._determine_somatotype_class()
+        else:
+            self.somatotype_class = somatotype_class
         
-        # Chart title
+        # Configure main grid for two columns
+        self.grid_columnconfigure(0, weight=1)  # Left column
+        self.grid_columnconfigure(1, weight=1)  # Right column
+        self.grid_rowconfigure(0, weight=0)     # Title
+        self.grid_rowconfigure(1, weight=1)     # Content
+        
+        # Chart title spanning both columns
         self.chart_title = ctk.CTkLabel(
             self,
             text="Your Body Type Composition",
-            font=ThemeManager.get_subtitle_font(),
+            font=ctk.CTkFont(size=24, weight="bold"),
             text_color=ThemeManager.PRIMARY_COLOR
         )
-        self.chart_title.grid(row=0, column=0, pady=(0, 10))
+        self.chart_title.grid(row=0, column=0, columnspan=2, pady=(0, 20))
         
-        # Somatotype classification display
-        self.classification_frame = ctk.CTkFrame(self, fg_color=ThemeManager.BG_COLOR, corner_radius=8)
-        self.classification_frame.grid(row=1, column=0, pady=(0, 15), sticky="ew")
+        # Left column: Classification with prominence
+        self.classification_frame = ctk.CTkFrame(
+            self, 
+            fg_color="white", 
+            corner_radius=16,
+            border_width=2,
+            border_color=ThemeManager.PRIMARY_COLOR
+        )
+        self.classification_frame.grid(row=1, column=0, padx=(0, 10), pady=5, sticky="nsew")
+        self.classification_frame.grid_columnconfigure(0, weight=1)
+        self.classification_frame.grid_rowconfigure(1, weight=1)
         
+        # Classification header
+        self.classification_header = ctk.CTkLabel(
+            self.classification_frame,
+            text="Classification",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=ThemeManager.GRAY_DARK
+        )
+        self.classification_header.grid(row=0, column=0, pady=(20, 10))
+        
+        # Main classification with bigger, highlighted font
         self.classification_label = ctk.CTkLabel(
             self.classification_frame,
-            text=f"Classification: {self.somatotype_class}",
-            font=ThemeManager.get_label_font(),
+            text=self.somatotype_class,
+            font=ctk.CTkFont(size=32, weight="bold"),
             text_color=ThemeManager.PRIMARY_COLOR
         )
-        self.classification_label.pack(pady=8)
+        self.classification_label.grid(row=1, column=0, pady=10)
         
-        # Somatotype visualization
-        self.soma_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.soma_frame.grid(row=2, column=0)
-        self.soma_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        # Classification description
+        self.classification_desc = ctk.CTkLabel(
+            self.classification_frame,
+            text=self._get_classification_description(self.somatotype_class),
+            font=ctk.CTkFont(size=14),
+            text_color=ThemeManager.GRAY_MEDIUM,
+            wraplength=200,
+            justify="center"
+        )
+        self.classification_desc.grid(row=2, column=0, pady=(0, 20))
         
-        # Ectomorph
+        # Right column: Somatotype scores
+        self.scores_frame = ctk.CTkFrame(self, fg_color="white", corner_radius=16)
+        self.scores_frame.grid(row=1, column=1, padx=(10, 0), pady=5, sticky="nsew")
+        self.scores_frame.grid_columnconfigure((0, 1, 2), weight=1)  # Three columns for row layout
+        
+        # Scores header
+        self.scores_header = ctk.CTkLabel(
+            self.scores_frame,
+            text="Body Type Scores",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=ThemeManager.GRAY_DARK
+        )
+        self.scores_header.grid(row=0, column=0, columnspan=3, pady=(20, 15))
+        
+        # Create somatotype items in horizontal row layout
         self.ectomorph_frame = self._create_soma_item(
-            self.soma_frame,
+            self.scores_frame,
             "Ectomorph",
             self.ectomorph,
-            "Lean & tall body type\nFast metabolism\nDifficult to gain weight",
-            0
+            "Lean & tall body type\nFast metabolism",
+            0  # column 0
         )
         
-        # Mesomorph
         self.mesomorph_frame = self._create_soma_item(
-            self.soma_frame,
-            "Mesomorph",
+            self.scores_frame,
+            "Mesomorph", 
             self.mesomorph,
-            "Athletic & muscular body\nResponds quickly to exercise\nGains/loses weight easily",
-            1
+            "Athletic & muscular body\nResponds quickly to exercise",
+            1  # column 1
         )
         
-        # Endomorph
         self.endomorph_frame = self._create_soma_item(
-            self.soma_frame,
+            self.scores_frame,
             "Endomorph",
             self.endomorph,
-            "Soft & round body type\nSlower metabolism\nGains weight more easily",
-            2
+            "Soft & round body type\nSlower metabolism",
+            2  # column 2
         )
     
-    def _create_soma_item(self, parent, title, percentage, description, column):
-        """Create a somatotype visualization item"""
-        frame = ctk.CTkFrame(parent, fg_color="transparent")
-        frame.grid(row=0, column=column, padx=10, pady=5)
+    def _get_classification_description(self, classification):
+        """Get description for the classification"""
+        descriptions = {
+            "Balanced": "Well-rounded physique with moderate characteristics from all body types",
+            "Ectomorph": "Naturally lean with fast metabolism",
+            "Mesomorph": "Athletic build with good muscle development",
+            "Endomorph": "Naturally curvy with slower metabolism",
+            "Ecto-Mesomorph": "Lean athletic build",
+            "Meso-Endomorph": "Muscular with tendency to store fat"
+        }
+        return descriptions.get(classification, "Unique body type composition")
+    
+    def _determine_somatotype_class(self):
+        """Determine somatotype classification from scores"""
+        # Find the dominant type
+        scores = {
+            'Ectomorph': self.ectomorph,
+            'Mesomorph': self.mesomorph,
+            'Endomorph': self.endomorph
+        }
         
-        # Circle with percentage
-        circle_size = 90
+        # Get the highest scoring type
+        max_type = max(scores, key=scores.get)
+        max_score = scores[max_type]
+        
+        # Check if it's clearly dominant (>40%) or if it's balanced
+        if max_score >= 40:
+            return max_type
+        
+        # Check for combined types (when two types are close)
+        sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        first_type, first_score = sorted_scores[0]
+        second_type, second_score = sorted_scores[1]
+        
+        # If the two highest scores are close (within 8 points), it's a combined type
+        if abs(first_score - second_score) <= 8:
+            if 'Ectomorph' in [first_type, second_type] and 'Mesomorph' in [first_type, second_type]:
+                return 'Ecto-Mesomorph'
+            elif 'Mesomorph' in [first_type, second_type] and 'Endomorph' in [first_type, second_type]:
+                return 'Meso-Endomorph'
+        
+        # If no clear dominant type and not a clear combination, it's balanced
+        if max_score < 40:
+            return 'Balanced'
+        
+        return max_type
+    
+    def _create_soma_item(self, parent, title, percentage, description, column):
+        """Create a somatotype item in row layout"""
+        frame = ctk.CTkFrame(parent, fg_color="transparent")
+        frame.grid(row=1, column=column, padx=10, pady=(0, 20), sticky="ew")
+        frame.grid_columnconfigure(0, weight=1)
+        
+        # Score circle
+        circle_size = 70
         circle_frame = ctk.CTkFrame(
             frame,
             width=circle_size,
             height=circle_size,
             corner_radius=circle_size//2,
-            fg_color=ThemeManager.BG_COLOR,
-            border_width=3,
+            fg_color=ThemeManager.SECONDARY_COLOR,
+            border_width=2,
             border_color=ThemeManager.PRIMARY_COLOR
         )
-        circle_frame.pack(pady=5)
+        circle_frame.grid(row=0, column=0, pady=(0, 10))
         circle_frame.grid_propagate(False)
         
-        # Percentage label inside circle (without % sign since these are scores, not percentages)
+        # Score label inside circle
         score_label = ctk.CTkLabel(
             circle_frame,
             text=f"{percentage:.1f}",
-            font=ThemeManager.get_title_font(),
+            font=ctk.CTkFont(size=18, weight="bold"),
             text_color=ThemeManager.PRIMARY_COLOR
         )
         score_label.place(relx=0.5, rely=0.5, anchor="center")
@@ -253,30 +359,30 @@ class SomatotypeVisual(ctk.CTkFrame):
         title_label = ctk.CTkLabel(
             frame,
             text=title,
-            font=ThemeManager.get_label_font(),
+            font=ctk.CTkFont(size=14, weight="bold"),
             text_color=ThemeManager.GRAY_DARK
         )
-        title_label.pack(pady=(5, 0))
+        title_label.grid(row=1, column=0, pady=(0, 5))
         
         # Description
         desc_label = ctk.CTkLabel(
             frame,
             text=description,
-            font=ThemeManager.get_small_font(),
+            font=ctk.CTkFont(size=11),
             text_color=ThemeManager.GRAY_MEDIUM,
             justify="center",
-            wraplength=150
+            wraplength=120
         )
-        desc_label.pack(pady=(5, 0))
+        desc_label.grid(row=2, column=0, pady=(0, 0))
         
         return frame
 
 
 class CalorieInfoCard(ctk.CTkFrame):
-    """Card showing calorie information"""
+    """Card showing calorie information with enhanced styling"""
     
     def __init__(self, parent, calorie_intake=2000, goal="Maintain Weight"):
-        super().__init__(parent, corner_radius=10, fg_color=ThemeManager.get_card_fg_color())
+        super().__init__(parent, corner_radius=16, fg_color=ThemeManager.get_card_fg_color())
         
         # Save values
         self.calorie_intake = calorie_intake
@@ -285,23 +391,23 @@ class CalorieInfoCard(ctk.CTkFrame):
         # Configure grid
         self.grid_columnconfigure(0, weight=1)
         
-        # Header
+        # Header with bigger, more prominent font
         self.header = ctk.CTkLabel(
             self,
             text="Daily Caloric Target",
-            font=ThemeManager.get_subtitle_font(),
+            font=ctk.CTkFont(size=26, weight="bold"),
             text_color=ThemeManager.PRIMARY_COLOR
         )
-        self.header.grid(row=0, column=0, padx=15, pady=(15, 5), sticky="w")
+        self.header.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
         
-        # Calorie display
+        # Calorie display with enhanced styling
         self.calorie_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.calorie_frame.grid(row=1, column=0, padx=15, pady=5, sticky="ew")
+        self.calorie_frame.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
         
         self.calorie_value = ctk.CTkLabel(
             self.calorie_frame,
             text=f"{self.calorie_intake}",
-            font=ctk.CTkFont(size=32, weight="bold"),
+            font=ctk.CTkFont(size=42, weight="bold"),
             text_color=ThemeManager.PRIMARY_COLOR
         )
         self.calorie_value.pack(side="left")
@@ -309,19 +415,19 @@ class CalorieInfoCard(ctk.CTkFrame):
         self.calorie_unit = ctk.CTkLabel(
             self.calorie_frame,
             text="calories",
-            font=ThemeManager.get_label_font(),
+            font=ctk.CTkFont(size=18),
             text_color=ThemeManager.GRAY_DARK
         )
-        self.calorie_unit.pack(side="left", padx=(5, 0), pady=(8, 0))
+        self.calorie_unit.pack(side="left", padx=(8, 0), pady=(12, 0))
         
-        # Goal
+        # Goal with better styling
         self.goal_label = ctk.CTkLabel(
             self,
             text=f"Goal: {self.goal}",
-            font=ThemeManager.get_small_font(),
+            font=ctk.CTkFont(size=16, weight="normal"),
             text_color=ThemeManager.GRAY_MEDIUM
         )
-        self.goal_label.grid(row=2, column=0, padx=15, pady=(0, 15), sticky="w")
+        self.goal_label.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="w")
     
     def update_values(self, calorie_intake, goal):
         """Update with new values"""
@@ -1138,26 +1244,26 @@ class MacronutrientDetailModal:
 
 
 class ExerciseRecommendations(ctk.CTkFrame):
-    """Component showing exercise recommendations based on user preference"""
+    """Component showing exercise recommendations with enhanced text and centered layout for bodyweight"""
     
     def __init__(self, parent):
-        super().__init__(parent, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
+        super().__init__(parent, fg_color=ThemeManager.get_card_fg_color(), corner_radius=16)
         
         # Configure grid
         self.grid_columnconfigure(0, weight=1)
         
-        # Title
+        # Title with bigger font
         self.title_label = ctk.CTkLabel(
             self,
             text="💪 Your Exercise Plan",
-            font=ThemeManager.get_title_font(),
+            font=ctk.CTkFont(size=24, weight="bold"),
             text_color=ThemeManager.PRIMARY_COLOR
         )
         self.title_label.grid(row=0, column=0, pady=(20, 15), padx=20)
         
         # Content frame
         self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.content_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 20))
+        self.content_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 20))
         self.content_frame.grid_columnconfigure(0, weight=1)
         
         # Default placeholder
@@ -1167,7 +1273,7 @@ class ExerciseRecommendations(ctk.CTkFrame):
             font=ThemeManager.get_label_font(),
             text_color=ThemeManager.GRAY_MEDIUM
         )
-        self.placeholder_label.grid(row=0, column=0, pady=20)
+        self.placeholder_label.grid(row=0, column=0, pady=15)
     
     def update_exercise_recommendations(self, exercise_data):
         """Update exercise recommendations based on data"""
@@ -1292,33 +1398,36 @@ class ExerciseRecommendations(ctk.CTkFrame):
             self._create_exercise_category(exercises_frame, "🦵 Legs", legs_exercises[:4], 2)
     
     def _create_bodyweight_exercises(self, exercise_data):
-        """Create bodyweight exercise display"""
+        """Create bodyweight exercise display with centered layout"""
         exercises_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
         exercises_frame.grid(row=3, column=0, sticky="ew")
+        exercises_frame.grid_columnconfigure(0, weight=1)  # Center the column
         
         bodyweight_exercises = exercise_data.get('bodyweight_exercises', [])
         if bodyweight_exercises:
+            # Create centered bodyweight category with bigger text
             self._create_exercise_category(exercises_frame, "🏃 Bodyweight", bodyweight_exercises[:8], 0, single_column=True)
     
     def _create_exercise_category(self, parent, title, exercises, column, single_column=False):
-        """Create an exercise category section"""
-        category_frame = ctk.CTkFrame(parent, fg_color=ThemeManager.BG_COLOR, corner_radius=8)
+        """Create an exercise category section with enhanced styling"""
+        category_frame = ctk.CTkFrame(parent, fg_color=ThemeManager.SECONDARY_COLOR, corner_radius=12)
         if single_column:
-            category_frame.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+            category_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=10)  # Center with padding
+            parent.grid_columnconfigure(0, weight=1)
         else:
             category_frame.grid(row=0, column=column, sticky="nsew", padx=5, pady=5)
         category_frame.grid_columnconfigure(0, weight=1)
         
-        # Category title
+        # Category title with bigger font
         title_label = ctk.CTkLabel(
             category_frame,
             text=title,
-            font=ThemeManager.get_subtitle_font(),
+            font=ctk.CTkFont(size=18, weight="bold"),
             text_color=ThemeManager.PRIMARY_COLOR
         )
-        title_label.grid(row=0, column=0, pady=(10, 5))
+        title_label.grid(row=0, column=0, pady=(15, 10))
         
-        # Exercise list
+        # Exercise list with improved styling
         for i, exercise in enumerate(exercises[:6]):  # Max 6 exercises per category
             if exercise and str(exercise).strip():  # Only show non-empty exercises
                 exercise_str = str(exercise).strip()
@@ -1336,16 +1445,21 @@ class ExerciseRecommendations(ctk.CTkFrame):
                     exercise_name = exercise_str.title()
                     exercise_data = {'name': exercise_str, 'exerciseId': exercise_str}
                 
-                # Create clickable exercise button
+                # Create exercise frame for better styling
+                exercise_frame = ctk.CTkFrame(category_frame, fg_color="white", corner_radius=8)
+                exercise_frame.grid(row=i+1, column=0, sticky="ew", padx=10, pady=3)
+                exercise_frame.grid_columnconfigure(0, weight=1)
+                
+                # Create clickable exercise button with enhanced styling
                 exercise_button = ctk.CTkButton(
-                    category_frame,
+                    exercise_frame,
                     text=f"• {exercise_name}",
-                    font=ThemeManager.get_small_font(),
+                    font=ctk.CTkFont(size=14),
                     text_color=ThemeManager.GRAY_DARK,
                     fg_color="transparent",
-                    hover_color=ThemeManager.PRIMARY_COLOR,
+                    hover_color=ThemeManager.GRAY_LIGHT,
                     anchor="w",
-                    height=25,
+                    height=32,
                     command=lambda ex=exercise_data: self._show_exercise_details(ex)
                 )
                 exercise_button.grid(row=i+1, column=0, sticky="ew", padx=10, pady=2)
@@ -1811,26 +1925,26 @@ class ExerciseDetailModal:
 
 
 class DietPrinciples(ctk.CTkFrame):
-    """Component showing diet principles and nutritional guidelines"""
+    """Component showing diet principles and nutritional guidelines with improved spacing"""
     
     def __init__(self, parent):
-        super().__init__(parent, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
+        super().__init__(parent, fg_color=ThemeManager.get_card_fg_color(), corner_radius=16)
         
         # Configure grid
         self.grid_columnconfigure(0, weight=1)
         
-        # Title
+        # Title with icon
         self.title_label = ctk.CTkLabel(
             self,
             text="📋 Diet Principles",
-            font=ThemeManager.get_title_font(),
+            font=ctk.CTkFont(size=22, weight="bold"),
             text_color=ThemeManager.PRIMARY_COLOR
         )
         self.title_label.grid(row=0, column=0, pady=(20, 15), padx=20)
         
         # Content frame
         self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.content_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 20))
+        self.content_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 20))
         self.content_frame.grid_columnconfigure(0, weight=1)
         
         # Default placeholder
@@ -1840,7 +1954,7 @@ class DietPrinciples(ctk.CTkFrame):
             font=ThemeManager.get_label_font(),
             text_color=ThemeManager.GRAY_MEDIUM
         )
-        self.placeholder_label.grid(row=0, column=0, pady=20)
+        self.placeholder_label.grid(row=0, column=0, pady=15)
     
     def update_principles(self, principles_data):
         """Update diet principles display"""
@@ -1856,42 +1970,43 @@ class DietPrinciples(ctk.CTkFrame):
                     font=ThemeManager.get_label_font(),
                     text_color=ThemeManager.GRAY_MEDIUM
                 )
-                self.placeholder_label.grid(row=0, column=0, pady=20)
+                self.placeholder_label.grid(row=0, column=0, pady=15)
                 return
             
-            # Display principles as numbered list
+            # Display principles as compact numbered list
             for i, principle in enumerate(principles_data, 1):
                 principle_frame = ctk.CTkFrame(
                     self.content_frame, 
-                    fg_color=ThemeManager.BG_COLOR, 
-                    corner_radius=8
+                    fg_color=ThemeManager.SECONDARY_COLOR, 
+                    corner_radius=12
                 )
-                principle_frame.grid(row=i-1, column=0, sticky="ew", pady=5, padx=5)
+                principle_frame.grid(row=i-1, column=0, sticky="ew", pady=4, padx=5)
                 principle_frame.grid_columnconfigure(1, weight=1)
                 
-                # Number badge
+                # Number badge with better styling
                 number_label = ctk.CTkLabel(
                     principle_frame,
                     text=str(i),
-                    font=ThemeManager.get_label_font(),
+                    font=ctk.CTkFont(size=14, weight="bold"),
                     fg_color=ThemeManager.PRIMARY_COLOR,
-                    corner_radius=15,
-                    width=30,
-                    height=30
+                    text_color="white",
+                    corner_radius=18,
+                    width=36,
+                    height=36
                 )
-                number_label.grid(row=0, column=0, padx=10, pady=10)
+                number_label.grid(row=0, column=0, padx=12, pady=8)
                 
-                # Principle text
+                # Principle text with better readability
                 principle_label = ctk.CTkLabel(
                     principle_frame,
                     text=principle,
-                    font=ThemeManager.get_label_font(),
+                    font=ctk.CTkFont(size=14),
                     text_color=ThemeManager.GRAY_DARK,
-                    wraplength=500,
+                    wraplength=400,
                     justify="left",
                     anchor="w"
                 )
-                principle_label.grid(row=0, column=1, sticky="ew", padx=(0, 15), pady=10)
+                principle_label.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=8)
                 
         except Exception as e:
             print(f"Error updating diet principles: {e}")
@@ -1901,23 +2016,23 @@ class FitnessStrategy(ctk.CTkFrame):
     """Component showing fitness strategy and training split with graph visualization"""
     
     def __init__(self, parent):
-        super().__init__(parent, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
+        super().__init__(parent, fg_color=ThemeManager.get_card_fg_color(), corner_radius=16)
         
         # Configure grid
         self.grid_columnconfigure(0, weight=1)
         
-        # Title
+        # Title with icon
         self.title_label = ctk.CTkLabel(
             self,
             text="💪 Fitness Strategy",
-            font=ThemeManager.get_title_font(),
+            font=ctk.CTkFont(size=22, weight="bold"),
             text_color=ThemeManager.PRIMARY_COLOR
         )
         self.title_label.grid(row=0, column=0, pady=(20, 15), padx=20)
         
         # Content frame
         self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.content_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 20))
+        self.content_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 20))
         self.content_frame.grid_columnconfigure(0, weight=1)
         
         # Default placeholder
@@ -1927,7 +2042,7 @@ class FitnessStrategy(ctk.CTkFrame):
             font=ThemeManager.get_label_font(),
             text_color=ThemeManager.GRAY_MEDIUM
         )
-        self.placeholder_label.grid(row=0, column=0, pady=20)
+        self.placeholder_label.grid(row=0, column=0, pady=15)
     
     def update_strategy(self, strategy_data):
         """Update fitness strategy display"""
@@ -2001,9 +2116,10 @@ class FitnessStrategy(ctk.CTkFrame):
             strength_frame,
             text="🏋️ Strength",
             font=ThemeManager.get_label_font(),
-            width=80
+            width=90,
+            anchor="w"
         )
-        strength_label.grid(row=0, column=0, padx=(0, 10))
+        strength_label.grid(row=0, column=0, padx=(0, 10), sticky="w")
         
         strength_bar_frame = ctk.CTkFrame(
             strength_frame, 
@@ -2043,9 +2159,10 @@ class FitnessStrategy(ctk.CTkFrame):
             cardio_frame,
             text="🏃 Cardio",
             font=ThemeManager.get_label_font(),
-            width=80
+            width=90,
+            anchor="w"
         )
-        cardio_label.grid(row=0, column=0, padx=(0, 10))
+        cardio_label.grid(row=0, column=0, padx=(0, 10), sticky="w")
         
         cardio_bar_frame = ctk.CTkFrame(
             cardio_frame, 
@@ -2086,9 +2203,10 @@ class FitnessStrategy(ctk.CTkFrame):
                 rest_frame,
                 text="😴 Rest",
                 font=ThemeManager.get_label_font(),
-                width=80
+                width=90,
+                anchor="w"
             )
-            rest_label.grid(row=0, column=0, padx=(0, 10))
+            rest_label.grid(row=0, column=0, padx=(0, 10), sticky="w")
             
             rest_bar_frame = ctk.CTkFrame(
                 rest_frame, 
@@ -2120,7 +2238,7 @@ class FitnessStrategy(ctk.CTkFrame):
 
 
 class MealBasedFoodRecommendations(ctk.CTkFrame):
-    """Enhanced component showing food recommendations as interactive cards organized by meal type"""
+    """Enhanced component showing food recommendations with improved readability and intuitive design"""
     
     def __init__(self, parent):
         super().__init__(parent, fg_color="transparent")
@@ -2128,17 +2246,17 @@ class MealBasedFoodRecommendations(ctk.CTkFrame):
         # Configure grid
         self.grid_columnconfigure(0, weight=1)
         
-        # Title
+        # Title with better prominence
         self.title_label = ctk.CTkLabel(
             self,
             text="🍽️ Personalized Food Recommendations",
-            font=ThemeManager.get_title_font(),
+            font=ctk.CTkFont(size=24, weight="bold"),
             text_color=ThemeManager.PRIMARY_COLOR
         )
         self.title_label.grid(row=0, column=0, pady=(0, 20))
         
         # Content frame for meal categories
-        self.content_frame = ctk.CTkFrame(self, fg_color=ThemeManager.get_card_fg_color(), corner_radius=10)
+        self.content_frame = ctk.CTkFrame(self, fg_color=ThemeManager.get_card_fg_color(), corner_radius=16)
         self.content_frame.grid(row=1, column=0, sticky="ew")
         self.content_frame.grid_columnconfigure(0, weight=1)
         
@@ -2440,22 +2558,21 @@ class DietPage(ctk.CTkFrame):
         self.soma_visual = None
         
     def _create_diet_section(self):
-        """Create diet recommendations section"""
-        # Diet principles section
+        """Create diet recommendations section with improved two-column layout"""
+        # Diet principles and fitness strategy in two columns
         self.diet_principles = DietPrinciples(self.content_scroll)
-        self.diet_principles.grid(row=3, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        self.diet_principles.grid(row=3, column=0, sticky="nsew", pady=(0, 15), padx=(0, 10))
         
-        # Fitness strategy section
         self.fitness_strategy = FitnessStrategy(self.content_scroll)
-        self.fitness_strategy.grid(row=4, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        self.fitness_strategy.grid(row=3, column=1, sticky="nsew", pady=(0, 15), padx=(10, 0))
         
-        # Meal recommendations section
+        # Meal recommendations section (full width)
         self.meal_recommendations = MealBasedFoodRecommendations(self.content_scroll)
-        self.meal_recommendations.grid(row=5, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        self.meal_recommendations.grid(row=4, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
         
-        # Exercise recommendations section
+        # Exercise recommendations section (full width)
         self.exercise_recommendations = ExerciseRecommendations(self.content_scroll)
-        self.exercise_recommendations.grid(row=6, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        self.exercise_recommendations.grid(row=5, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
         
     def _create_footer(self):
         """Create footer with action buttons"""
