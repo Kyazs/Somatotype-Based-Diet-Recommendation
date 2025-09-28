@@ -1385,17 +1385,17 @@ class ExerciseRecommendations(ctk.CTkFrame):
         # Push exercises
         push_exercises = exercise_data.get('push_exercises', [])
         if push_exercises:
-            self._create_exercise_category(exercises_frame, "🔥 Push", push_exercises[:4], 0)
+            self._create_exercise_category(exercises_frame, "🔥 Push", push_exercises, 0)
         
         # Pull exercises  
         pull_exercises = exercise_data.get('pull_exercises', [])
         if pull_exercises:
-            self._create_exercise_category(exercises_frame, "⬇️ Pull", pull_exercises[:4], 1)
+            self._create_exercise_category(exercises_frame, "⬇️ Pull", pull_exercises, 1)
         
         # Leg exercises
         legs_exercises = exercise_data.get('legs_exercises', [])
         if legs_exercises:
-            self._create_exercise_category(exercises_frame, "🦵 Legs", legs_exercises[:4], 2)
+            self._create_exercise_category(exercises_frame, "🦵 Legs", legs_exercises, 2)
     
     def _create_bodyweight_exercises(self, exercise_data):
         """Create bodyweight exercise display with centered layout"""
@@ -1406,7 +1406,7 @@ class ExerciseRecommendations(ctk.CTkFrame):
         bodyweight_exercises = exercise_data.get('bodyweight_exercises', [])
         if bodyweight_exercises:
             # Create centered bodyweight category with bigger text
-            self._create_exercise_category(exercises_frame, "🏃 Bodyweight", bodyweight_exercises[:8], 0, single_column=True)
+            self._create_exercise_category(exercises_frame, "🏃 Bodyweight", bodyweight_exercises, 0, single_column=True)
     
     def _create_exercise_category(self, parent, title, exercises, column, single_column=False):
         """Create an exercise category section with enhanced styling"""
@@ -1428,7 +1428,7 @@ class ExerciseRecommendations(ctk.CTkFrame):
         title_label.grid(row=0, column=0, pady=(15, 10))
         
         # Exercise list with improved styling
-        for i, exercise in enumerate(exercises[:6]):  # Max 6 exercises per category
+        for i, exercise in enumerate(exercises):  # Show all exercises in the category
             if exercise and str(exercise).strip():  # Only show non-empty exercises
                 exercise_str = str(exercise).strip()
                 
