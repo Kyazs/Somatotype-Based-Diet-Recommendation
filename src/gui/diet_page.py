@@ -2658,12 +2658,17 @@ class DietPage(ctk.CTkFrame):
                 
             print(f"📋 Loading data for session ID: {session_id}")
             
-            # Check session status
-            session_status = most_recent_record.get('status', 'unknown')
-            print(f"📊 Session status: {session_status}")
+            # Check if we have the minimum required data for display
+            has_required_data = (
+                most_recent_record.get('somatotype_class') and
+                most_recent_record.get('calories') and
+                most_recent_record.get('protein_g') and
+                most_recent_record.get('carbs_g') and
+                most_recent_record.get('fat_g')
+            )
             
-            if session_status != 'completed':
-                error_msg = f"Session is not completed (status: {session_status}). Please wait for processing to finish."
+            if not has_required_data:
+                error_msg = "Incomplete analysis data. Please complete a full analysis to view diet recommendations."
                 print(f"⚠️ {error_msg}")
                 self._show_error(error_msg)
                 return

@@ -305,11 +305,11 @@ class HistoryPage(ctk.CTkFrame):
             stats = self.db_manager.get_database_stats()
             
             # Update total analyses
-            total_analyses = stats.get('analysis_sessions', 0)
+            total_analyses = stats.get('total_analyses', 0)
             self.total_card.value_label.configure(text=str(total_analyses))
             
             # Update this week
-            week_analyses = stats.get('sessions_last_7_days', 0)
+            week_analyses = stats.get('week_analyses', 0)
             self.week_card.value_label.configure(text=str(week_analyses))
             
             # Update latest analysis date
@@ -482,7 +482,7 @@ class HistoryPage(ctk.CTkFrame):
         
         # Details row
         age = record.get('age', 'N/A')
-        gender = record.get('gender', 'N/A')
+        gender = record.get('gender', 'N/A') 
         goal = record.get('goal', 'N/A')
         
         details_text = f"Age: {age} • {gender.title()} • {goal}"

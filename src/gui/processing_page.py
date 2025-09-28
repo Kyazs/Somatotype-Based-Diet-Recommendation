@@ -882,9 +882,34 @@ class ProcessingPage(ctk.CTkFrame):
                 return
                 
             user_data = state_manager.user_data
+            print(f"🔍 DEBUG - User data from state manager: {user_data}")
+            
+            # Check if we have required fields
+            required_fields = ['name', 'age', 'gender', 'height', 'weight', 'activity_level']
+            missing_fields = [field for field in required_fields if not user_data.get(field)]
+            
+            if missing_fields:
+                print(f"❌ Missing required user data fields: {missing_fields}")
+                return
+            
+            # Convert user data to proper database format
+            db_user_data = {
+                'name': user_data.get('name'),
+                'age': int(user_data.get('age')) if user_data.get('age') else 0,
+                'gender': user_data.get('gender'),
+                'height_cm': float(user_data.get('height')) if user_data.get('height') else 0.0,
+                'weight_kg': float(user_data.get('weight')) if user_data.get('weight') else 0.0,
+                'activity_level': user_data.get('activity_level'),
+                'fitness_goals': user_data.get('goal'),  # Note: 'goal' in state manager becomes 'fitness_goals' in DB
+                'exercise_type': user_data.get('exercise_type', 'bodyweight'),
+                'exercise_complexity': user_data.get('exercise_complexity', 'beginner')
+            }
+            
+            print(f"🔍 DEBUG - Formatted user data for database: {db_user_data}")
             
             # Insert user into database
-            self.current_user_id = self.db_manager.insert_user(user_data)
+            self.current_user_id = self.db_manager.insert_user(db_user_data)
+            print(f"✅ User inserted with ID: {self.current_user_id}")
             
             # Get captured image paths (from captured_poses folder)
             captured_poses_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "database", "captured_poses")
@@ -902,8 +927,10 @@ class ProcessingPage(ctk.CTkFrame):
                 # Get the most recent ones
                 if front_images:
                     front_captured_path = front_images[0]
+                    print(f"🔍 DEBUG - Found front image: {front_captured_path}")
                 if side_images:
                     side_captured_path = side_images[0]
+                    print(f"🔍 DEBUG - Found side image: {side_captured_path}")
             
             # Also check input files as fallback
             front_input_path = os.path.join(INPUT_FILES_DIR, "input_front.png") if os.path.exists(os.path.join(INPUT_FILES_DIR, "input_front.png")) else None
@@ -915,12 +942,15 @@ class ProcessingPage(ctk.CTkFrame):
                 front_captured_path or front_input_path,
                 side_captured_path or side_input_path
             )
+            print(f"✅ Analysis session created with ID: {self.current_session_id}")
             
             # Update session status to processing
             self._update_session_status('processing')
             
         except Exception as e:
             print(f"❌ Error initializing database session: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _update_session_status(self, status):
         """Update session status in database"""
@@ -934,6 +964,7 @@ class ProcessingPage(ctk.CTkFrame):
         """Save body measurements from CNN output to database"""
         try:
             if not self.current_session_id:
+                print("⚠️  No current session ID for body measurements")
                 return
             
             # Read CNN output file
@@ -942,27 +973,55 @@ class ProcessingPage(ctk.CTkFrame):
                 print(f"⚠️  Measurements file not found: {measurements_path}")
                 return
             
+            print(f"🔍 DEBUG - Reading measurements from: {measurements_path}")
+            
             import pandas as pd
-            df = pd.read_csv(measurements_path, delimiter='|')
+            try:
+                # Read with pipe delimiter and strip whitespace from column names
+                df = pd.read_csv(measurements_path, delimiter='|')
+                df.columns = df.columns.str.strip()  # Remove whitespace from column names
+                print(f"🔍 DEBUG - CSV columns after stripping: {list(df.columns)}")
+                print(f"🔍 DEBUG - CSV shape: {df.shape}")
+            except Exception as csv_error:
+                print(f"❌ Error reading CSV: {csv_error}")
+                return
             
             measurements = []
-            for _, row in df.iterrows():
-                measurement_name = str(row['Measurement']).strip()
-                if measurement_name and measurement_name != 'Measurement':  # Skip header row
-                    measurements.append({
-                        'type': measurement_name,
-                        'basic_input': self._safe_float(row['Basic-Input']),
-                        'predicted_input': self._safe_float(row['Predicted-Input']),
-                        'avatar_output': self._safe_float(row['3D Avatar-Output']),
-                        'unit': 'cm' if 'girth' in measurement_name.lower() or 'stature' in measurement_name.lower() else 'kg'
-                    })
+            for idx, row in df.iterrows():
+                try:
+                    # Use the cleaned column name
+                    measurement_name = str(row['Measurement']).strip()
+                    print(f"🔍 DEBUG - Processing measurement: '{measurement_name}'")
+                    
+                    if measurement_name and measurement_name.lower() != 'measurement' and measurement_name != '':  # Skip header and empty rows
+                        basic_input = self._safe_float(row['Basic-Input'])
+                        predicted_input = self._safe_float(row['Predicted-Input'])
+                        avatar_output = self._safe_float(row['3D Avatar-Output'])
+                        
+                        measurements.append({
+                            'type': measurement_name,
+                            'basic_input': basic_input,
+                            'predicted_input': predicted_input,
+                            'avatar_output': avatar_output,
+                            'unit': 'cm' if 'girth' in measurement_name.lower() or 'stature' in measurement_name.lower() else 'kg'
+                        })
+                        
+                except Exception as row_error:
+                    print(f"❌ Error processing row {idx}: {row_error}")
+                    continue
             
             # Insert measurements into database
             if measurements:
+                print(f"🔍 DEBUG - Saving {len(measurements)} measurements to database")
                 self.db_manager.insert_body_measurements(self.current_session_id, measurements)
+                print(f"✅ Body measurements saved for session {self.current_session_id}")
+            else:
+                print("⚠️  No valid measurements found to save")
                 
         except Exception as e:
             print(f"❌ Error saving body measurements: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _save_somatotype_classification(self):
         """Save somatotype classification from classifier output to database"""
@@ -1054,13 +1113,25 @@ class ProcessingPage(ctk.CTkFrame):
             
             # Read meal recommendations JSON file
             meal_recommendations_json = "{}"
+            template_id = None
+            diet_principles_json = "[]"
+            
             meal_json_path = os.path.join(OUTPUT_FILES_DIR, "meal_recommendations.json")
             if os.path.exists(meal_json_path):
                 try:
                     with open(meal_json_path, 'r') as f:
                         meal_data = json.load(f)
                         meal_recommendations_json = json.dumps(meal_data)
+                        
+                        # Extract template_id and diet_principles from meal data
+                        template_id = meal_data.get('template_id')
+                        diet_principles = meal_data.get('diet_principles', [])
+                        diet_principles_json = json.dumps(diet_principles) if diet_principles else "[]"
+                        
                         print(f"✅ Loaded meal recommendations from {meal_json_path}")
+                        print(f"   - Template ID: {template_id}")
+                        print(f"   - Diet Principles: {len(diet_principles)} items")
+                        
                 except Exception as e:
                     print(f"⚠️  Error reading meal recommendations JSON: {e}")
             else:
@@ -1075,7 +1146,9 @@ class ProcessingPage(ctk.CTkFrame):
                 'bmr': macros.get('bmr', 1500),
                 'tdee': macros.get('tdee', 2000),
                 'nutrition_insights': insights,
-                'meal_recommendations': meal_recommendations_json
+                'meal_recommendations': meal_recommendations_json,
+                'template_id': template_id,
+                'diet_principles': diet_principles_json
             }
             
             # Calculate macronutrient percentages
@@ -1087,10 +1160,7 @@ class ProcessingPage(ctk.CTkFrame):
             
             # Insert diet recommendation
             recommendation_id = self.db_manager.insert_diet_recommendation(self.current_session_id, recommendation_data)
-            
-            # Insert recommended foods
-            if foods and recommendation_id:
-                self.db_manager.insert_recommended_foods(recommendation_id, foods)
+            print(f"✅ Diet recommendation saved with ID: {recommendation_id}")
                 
         except Exception as e:
             print(f"❌ Error saving diet recommendations: {e}")
@@ -1116,17 +1186,24 @@ class ProcessingPage(ctk.CTkFrame):
             if not exercises_data:
                 print("⚠️  No exercise data found in meal recommendations")
                 return
+            
+            # Extract template_id from meal data
+            template_id = meal_data.get('template_id')
                 
             # Prepare fitness recommendation data
             fitness_data = {
                 'fitness_strategy': exercises_data.get('fitness_strategy', 'Balanced strength and cardio training'),
                 'strength_days': exercises_data.get('strength_days', 3),
                 'cardio_days': exercises_data.get('cardio_days', 2),
-                'exercises': exercises_data
+                'exercise_recommendations': json.dumps(exercises_data),  # Store exercises as JSON in exercise_recommendations column
+                'template_id': template_id
             }
+            
+            print(f"🔍 DEBUG - Fitness data for database: {fitness_data}")
             
             # Insert fitness recommendation
             fitness_rec_id = self.db_manager.insert_fitness_recommendation(self.current_session_id, fitness_data)
+            print(f"✅ Fitness recommendation saved with ID: {fitness_rec_id}")
             
             # Extract and insert recommended exercises
             exercises_list = []
@@ -1144,9 +1221,7 @@ class ProcessingPage(ctk.CTkFrame):
                                 'category': category
                             })
             
-            if exercises_list and fitness_rec_id:
-                self.db_manager.insert_recommended_exercises(fitness_rec_id, exercises_list)
-                print(f"✅ Saved {len(exercises_list)} fitness exercises to database")
+            print(f"✅ Fitness recommendation saved with {len(exercises_list)} exercises")
                 
         except Exception as e:
             print(f"❌ Error saving fitness recommendations: {e}")
