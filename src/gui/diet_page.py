@@ -3092,117 +3092,179 @@ class DietPage(ctk.CTkFrame):
             print(f"Error clearing input form: {e}")
     
     def _export_diet_plan(self):
-        """Export the current diet plan to CSV"""
+        """Export the current diet plan to PDF"""
         try:
-            from tkinter import filedialog
-            import csv
-            from datetime import datetime
-            
-            # Ask user where to save the file
-            filename = filedialog.asksaveasfilename(
-                title="Export Diet Plan",
-                defaultextension=".csv",
-                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
-                initialname=f"diet_plan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-            )
-            
-            if not filename:
-                return  # User cancelled
-                
             # Get current diet data
             if not hasattr(self, 'current_record') or not self.current_record:
-                from tkinter import messagebox
-                messagebox.showwarning("No Data", "No diet plan data available to export.")
+                self._show_error("No diet plan data available to export.")
                 return
             
-            # Prepare data for export
-            export_data = []
+            # Import PDF exporter
+            from utils.pdf_exporter import PDFExporter, create_export_directory, generate_export_filename
             
-            # Add header information
-            export_data.append(["Diet Plan Export"])
-            export_data.append(["Generated on:", datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
-            export_data.append([])  # Empty row
+            # Show progress dialog
+            progress_dialog = self._create_progress_dialog("Generating PDF report...")
+            self.update()
             
-            # Add user information
-            user_data = self.current_record.get('user_data', {})
-            export_data.append(["User Information"])
-            export_data.append(["Name:", user_data.get('name', 'N/A')])
-            export_data.append(["Age:", user_data.get('age', 'N/A')])
-            export_data.append(["Gender:", user_data.get('gender', 'N/A')])
-            export_data.append(["Weight:", f"{user_data.get('weight', 'N/A')} kg"])
-            export_data.append(["Height:", f"{user_data.get('height', 'N/A')} cm"])
-            export_data.append(["Goal:", user_data.get('goal', 'N/A')])
-            export_data.append(["Activity Level:", user_data.get('activity_level', 'N/A')])
-            export_data.append([])  # Empty row
+            # Create exporter and generate PDF
+            exporter = PDFExporter()
+            export_dir = create_export_directory()
+            filename = generate_export_filename(self.current_record, is_history=False)
+            output_path = os.path.join(export_dir, filename)
             
-            # Add somatotype information
-            somatotype_data = self.current_record.get('somatotype_data', {})
-            export_data.append(["Somatotype Analysis"])
-            export_data.append(["Classification:", somatotype_data.get('class', 'N/A')])
-            export_data.append(["Ectomorph %:", somatotype_data.get('ectomorph', 'N/A')])
-            export_data.append(["Mesomorph %:", somatotype_data.get('mesomorph', 'N/A')])
-            export_data.append(["Endomorph %:", somatotype_data.get('endomorph', 'N/A')])
-            export_data.append([])  # Empty row
+            # Export to PDF
+            success = exporter.export_current_diet_plan(self.current_record, output_path)
             
-            # Add diet recommendations
-            diet_data = self.current_record.get('diet_data', {})
-            if diet_data:
-                export_data.append(["Daily Calorie Target"])
-                export_data.append(["Total Calories:", f"{diet_data.get('daily_calories', 'N/A')} kcal"])
-                export_data.append([])  # Empty row
+            # Close progress dialog
+            progress_dialog.destroy()
+            
+            if success:
+                self._show_export_success_dialog(output_path)
+            else:
+                self._show_error("Failed to generate PDF report. Please check the logs for details.")
                 
-                # Macronutrients
-                export_data.append(["Macronutrient Distribution"])
-                macros = diet_data.get('macronutrients', {})
-                export_data.append(["Protein:", f"{macros.get('protein', 'N/A')}%"])
-                export_data.append(["Carbohydrates:", f"{macros.get('carbs', 'N/A')}%"])
-                export_data.append(["Fat:", f"{macros.get('fat', 'N/A')}%"])
-                export_data.append([])  # Empty row
-                
-                # Meal recommendations
-                meals = diet_data.get('meals', {})
-                if meals:
-                    export_data.append(["Recommended Meals"])
-                    for meal_type, meal_data in meals.items():
-                        export_data.append([f"{meal_type.title()}:"])
-                        if isinstance(meal_data, list):
-                            for food_item in meal_data:
-                                if isinstance(food_item, dict):
-                                    name = food_item.get('name', 'Unknown')
-                                    calories = food_item.get('calories', 'N/A')
-                                    export_data.append([f"  - {name}", f"{calories} kcal"])
-                                else:
-                                    export_data.append([f"  - {food_item}"])
-                        export_data.append([])  # Empty row after each meal
-            
-            # Add fitness recommendations
-            fitness_data = self.current_record.get('fitness_data', {})
-            if fitness_data and fitness_data.get('exercises'):
-                export_data.append(["Fitness Recommendations"])
-                exercises = fitness_data.get('exercises', [])
-                for exercise in exercises:
-                    if isinstance(exercise, dict):
-                        name = exercise.get('name', 'Unknown Exercise')
-                        duration = exercise.get('duration', 'N/A')
-                        export_data.append([f"- {name}", f"Duration: {duration}"])
-                    else:
-                        export_data.append([f"- {exercise}"])
-                export_data.append([])  # Empty row
-            
-            # Write to CSV file
-            with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerows(export_data)
-            
-            # Show success message
-            from tkinter import messagebox
-            messagebox.showinfo("Export Successful", f"Diet plan exported successfully to:\n{filename}")
-            
+        except ImportError as e:
+            self._show_error(f"PDF export dependencies not installed. Please install required packages:\n{str(e)}")
         except Exception as e:
-            from tkinter import messagebox
-            messagebox.showerror("Export Error", f"Failed to export diet plan:\n{str(e)}")
-            print(f"Error exporting diet plan: {e}")
+            print(f"Export error: {e}")
+            import traceback
             traceback.print_exc()
+            self._show_error(f"An error occurred while generating the PDF report:\n{str(e)}")
+            
+    def _create_progress_dialog(self, message):
+        """Create a progress dialog"""
+        progress_dialog = ctk.CTkToplevel(self)
+        progress_dialog.title("Exporting...")
+        progress_dialog.geometry("350x120")
+        progress_dialog.transient(self)
+        progress_dialog.grab_set()
+        
+        # Center the dialog
+        progress_dialog.update_idletasks()
+        x = (progress_dialog.winfo_screenwidth() // 2) - (350 // 2)
+        y = (progress_dialog.winfo_screenheight() // 2) - (120 // 2)
+        progress_dialog.geometry(f"350x120+{x}+{y}")
+        
+        # Progress message
+        progress_label = ctk.CTkLabel(
+            progress_dialog,
+            text=message,
+            font=ctk.CTkFont(size=14),
+            text_color=ThemeManager.GRAY_DARK
+        )
+        progress_label.pack(expand=True)
+        
+        # Progress bar
+        progress_bar = ctk.CTkProgressBar(progress_dialog)
+        progress_bar.pack(padx=20, pady=(0, 20), fill="x")
+        progress_bar.set(0.8)  # Show indeterminate progress
+        
+        return progress_dialog
+        
+    def _show_export_success_dialog(self, file_path):
+        """Show success dialog with options to open file or folder"""
+        success_dialog = ctk.CTkToplevel(self)
+        success_dialog.title("Export Successful")
+        success_dialog.geometry("450x200")
+        success_dialog.transient(self)
+        success_dialog.grab_set()
+        
+        # Center the dialog
+        success_dialog.update_idletasks()
+        x = (success_dialog.winfo_screenwidth() // 2) - (450 // 2)
+        y = (success_dialog.winfo_screenheight() // 2) - (200 // 2)
+        success_dialog.geometry(f"450x200+{x}+{y}")
+        
+        # Success message
+        success_label = ctk.CTkLabel(
+            success_dialog,
+            text="✅ PDF report generated successfully!",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        success_label.pack(pady=(20, 10))
+        
+        # File path
+        file_label = ctk.CTkLabel(
+            success_dialog,
+            text=f"Saved to:\n{file_path}",
+            font=ctk.CTkFont(size=11),
+            text_color=ThemeManager.GRAY_MEDIUM,
+            wraplength=400,
+            justify="center"
+        )
+        file_label.pack(pady=(0, 20))
+        
+        # Buttons
+        button_frame = ctk.CTkFrame(success_dialog, fg_color="transparent")
+        button_frame.pack(pady=(0, 20))
+        
+        # Open file button
+        open_file_btn = ctk.CTkButton(
+            button_frame,
+            text="Open PDF",
+            command=lambda: self._open_file(file_path),
+            fg_color=ThemeManager.PRIMARY_COLOR,
+            hover_color=ThemeManager.PRIMARY_HOVER
+        )
+        open_file_btn.pack(side="left", padx=(0, 10))
+        
+        # Open folder button
+        open_folder_btn = ctk.CTkButton(
+            button_frame,
+            text="Open Folder",
+            command=lambda: self._open_folder(file_path),
+            fg_color=ThemeManager.SECONDARY_COLOR,
+            text_color=ThemeManager.PRIMARY_COLOR,
+            hover_color=ThemeManager.GRAY_LIGHT,
+            border_width=1,
+            border_color=ThemeManager.PRIMARY_COLOR
+        )
+        open_folder_btn.pack(side="left", padx=(10, 10))
+        
+        # Close button
+        close_btn = ctk.CTkButton(
+            button_frame,
+            text="Close",
+            command=success_dialog.destroy,
+            fg_color=ThemeManager.GRAY_MEDIUM,
+            hover_color=ThemeManager.GRAY_DARK
+        )
+        close_btn.pack(side="left", padx=(10, 0))
+        
+    def _open_file(self, file_path):
+        """Open the exported PDF file"""
+        try:
+            import subprocess
+            import platform
+            
+            if platform.system() == 'Windows':
+                os.startfile(file_path)
+            elif platform.system() == 'Darwin':  # macOS
+                subprocess.run(['open', file_path])
+            else:  # Linux
+                subprocess.run(['xdg-open', file_path])
+        except Exception as e:
+            print(f"Error opening file: {e}")
+            self._show_error(f"Could not open file: {str(e)}")
+            
+    def _open_folder(self, file_path):
+        """Open the folder containing the exported file"""
+        try:
+            import subprocess
+            import platform
+            
+            folder_path = os.path.dirname(file_path)
+            
+            if platform.system() == 'Windows':
+                subprocess.run(['explorer', folder_path])
+            elif platform.system() == 'Darwin':  # macOS
+                subprocess.run(['open', folder_path])
+            else:  # Linux
+                subprocess.run(['xdg-open', folder_path])
+        except Exception as e:
+            print(f"Error opening folder: {e}")
+            self._show_error(f"Could not open folder: {str(e)}")
 
 
 # Test the page if run directly

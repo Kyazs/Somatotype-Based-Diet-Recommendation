@@ -7,6 +7,7 @@ import customtkinter as ctk
 import pandas as pd
 import os
 import sys
+import time
 from PIL import Image, ImageTk
 import json
 from datetime import datetime
@@ -635,9 +636,176 @@ class HistoryDetailPage(ctk.CTkFrame):
             print(f"Error navigating back: {e}")
         
     def _export_results(self):
-        """Export analysis results"""
-        # TODO: Implement export functionality
-        print("Export functionality not yet implemented")
+        """Export analysis results to PDF"""
+        if not self.current_record:
+            self._show_error("No analysis data available to export.")
+            return
+        
+        try:
+            # Import PDF exporter
+            from utils.pdf_exporter import PDFExporter, create_export_directory, generate_export_filename
+            
+            # Show progress dialog
+            progress_dialog = self._create_progress_dialog("Generating PDF report...")
+            self.update()
+            
+            # Create exporter and generate PDF
+            exporter = PDFExporter()
+            export_dir = create_export_directory()
+            filename = generate_export_filename(self.current_record, is_history=True)
+            output_path = os.path.join(export_dir, filename)
+            
+            # Export to PDF
+            success = exporter.export_history_detail(self.current_record, output_path)
+            
+            # Close progress dialog
+            progress_dialog.destroy()
+            
+            if success:
+                self._show_export_success_dialog(output_path)
+            else:
+                self._show_error("Failed to generate PDF report. Please check the logs for details.")
+                
+        except ImportError as e:
+            self._show_error(f"PDF export dependencies not installed. Please install required packages:\n{str(e)}")
+        except Exception as e:
+            print(f"Export error: {e}")
+            self._show_error(f"An error occurred while generating the PDF report:\n{str(e)}")
+            
+    def _create_progress_dialog(self, message):
+        """Create a progress dialog"""
+        progress_dialog = ctk.CTkToplevel(self)
+        progress_dialog.title("Exporting...")
+        progress_dialog.geometry("350x120")
+        progress_dialog.transient(self)
+        progress_dialog.grab_set()
+        
+        # Center the dialog
+        progress_dialog.update_idletasks()
+        x = (progress_dialog.winfo_screenwidth() // 2) - (350 // 2)
+        y = (progress_dialog.winfo_screenheight() // 2) - (120 // 2)
+        progress_dialog.geometry(f"350x120+{x}+{y}")
+        
+        # Progress message
+        progress_label = ctk.CTkLabel(
+            progress_dialog,
+            text=message,
+            font=ctk.CTkFont(size=14),
+            text_color=ThemeManager.GRAY_DARK
+        )
+        progress_label.pack(expand=True)
+        
+        # Progress bar
+        progress_bar = ctk.CTkProgressBar(progress_dialog)
+        progress_bar.pack(padx=20, pady=(0, 20), fill="x")
+        progress_bar.set(0.8)  # Show indeterminate progress
+        
+        return progress_dialog
+        
+    def _show_export_success_dialog(self, file_path):
+        """Show success dialog with options to open file or folder"""
+        success_dialog = ctk.CTkToplevel(self)
+        success_dialog.title("Export Successful")
+        success_dialog.geometry("450x200")
+        success_dialog.transient(self)
+        success_dialog.grab_set()
+        
+        # Center the dialog
+        success_dialog.update_idletasks()
+        x = (success_dialog.winfo_screenwidth() // 2) - (450 // 2)
+        y = (success_dialog.winfo_screenheight() // 2) - (200 // 2)
+        success_dialog.geometry(f"450x200+{x}+{y}")
+        
+        # Success message
+        success_label = ctk.CTkLabel(
+            success_dialog,
+            text="✅ PDF report generated successfully!",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=ThemeManager.PRIMARY_COLOR
+        )
+        success_label.pack(pady=(20, 10))
+        
+        # File path
+        file_label = ctk.CTkLabel(
+            success_dialog,
+            text=f"Saved to:\n{file_path}",
+            font=ctk.CTkFont(size=11),
+            text_color=ThemeManager.GRAY_MEDIUM,
+            wraplength=400,
+            justify="center"
+        )
+        file_label.pack(pady=(0, 20))
+        
+        # Buttons
+        button_frame = ctk.CTkFrame(success_dialog, fg_color="transparent")
+        button_frame.pack(pady=(0, 20))
+        
+        # Open file button
+        open_file_btn = ctk.CTkButton(
+            button_frame,
+            text="Open PDF",
+            command=lambda: self._open_file(file_path),
+            fg_color=ThemeManager.PRIMARY_COLOR,
+            hover_color=ThemeManager.PRIMARY_HOVER
+        )
+        open_file_btn.pack(side="left", padx=(0, 10))
+        
+        # Open folder button
+        open_folder_btn = ctk.CTkButton(
+            button_frame,
+            text="Open Folder",
+            command=lambda: self._open_folder(file_path),
+            fg_color=ThemeManager.SECONDARY_COLOR,
+            text_color=ThemeManager.PRIMARY_COLOR,
+            hover_color=ThemeManager.GRAY_LIGHT,
+            border_width=1,
+            border_color=ThemeManager.PRIMARY_COLOR
+        )
+        open_folder_btn.pack(side="left", padx=(10, 10))
+        
+        # Close button
+        close_btn = ctk.CTkButton(
+            button_frame,
+            text="Close",
+            command=success_dialog.destroy,
+            fg_color=ThemeManager.GRAY_MEDIUM,
+            hover_color=ThemeManager.GRAY_DARK
+        )
+        close_btn.pack(side="left", padx=(10, 0))
+        
+    def _open_file(self, file_path):
+        """Open the exported PDF file"""
+        try:
+            import subprocess
+            import platform
+            
+            if platform.system() == 'Windows':
+                os.startfile(file_path)
+            elif platform.system() == 'Darwin':  # macOS
+                subprocess.run(['open', file_path])
+            else:  # Linux
+                subprocess.run(['xdg-open', file_path])
+        except Exception as e:
+            print(f"Error opening file: {e}")
+            self._show_error(f"Could not open file: {str(e)}")
+            
+    def _open_folder(self, file_path):
+        """Open the folder containing the exported file"""
+        try:
+            import subprocess
+            import platform
+            
+            folder_path = os.path.dirname(file_path)
+            
+            if platform.system() == 'Windows':
+                subprocess.run(['explorer', folder_path])
+            elif platform.system() == 'Darwin':  # macOS
+                subprocess.run(['open', folder_path])
+            else:  # Linux
+                subprocess.run(['xdg-open', folder_path])
+        except Exception as e:
+            print(f"Error opening folder: {e}")
+            self._show_error(f"Could not open folder: {str(e)}")
         
     # def _delete_record(self):
     #     """Delete the current record after confirmation"""

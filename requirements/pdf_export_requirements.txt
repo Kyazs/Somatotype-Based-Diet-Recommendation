@@ -1,0 +1,17 @@
+# PDF Export Requirements
+# For generating PDF reports from diet recommendations
+
+# Core PDF generation
+reportlab==4.0.7
+
+# Enhanced PDF layouts and styling  
+weasyprint==61.2
+
+# Image processing for PDF embedding
+Pillow>=10.0.0
+
+# Chart generation for PDF export
+matplotlib>=3.7.0
+
+# Additional utilities
+python-dateutil>=2.8.2
