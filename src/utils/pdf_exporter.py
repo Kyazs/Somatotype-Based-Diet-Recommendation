@@ -167,13 +167,17 @@ class PDFExporter:
             self._add_header(story, record_data, include_date=True)
             story.append(Spacer(1, 12))
             
-            # Captured images section (if available)
+            # Combined first page with bigger images and user info
             if self._has_images(record_data):
-                self._add_captured_images_section(story, record_data)
-                story.append(PageBreak())
+                self._add_captured_images_section_large(story, record_data)
+                story.append(Spacer(1, 15))
+                
+                # Add user summary under images on same page
+                self._add_user_summary_compact(story, record_data)
+            else:
+                # No images, just user summary
+                self._add_user_summary(story, record_data)
             
-            # User summary
-            self._add_user_summary(story, record_data)
             story.append(Spacer(1, 15))
             
             # Nutrition analysis
@@ -182,12 +186,13 @@ class PDFExporter:
             
             # Somatotype analysis
             self._add_somatotype_section(story, record_data)
-            story.append(PageBreak())
+            story.append(Spacer(1, 15))  # Continue on same page to save space
             
-            # Diet recommendations
+            # Diet recommendations - continue under somatotype analysis
             self._add_diet_recommendations(story, record_data)
+            story.append(Spacer(1, 15))  # Small space before fitness
             
-            # Exercise recommendations
+            # Exercise recommendations - continue under diet recommendations (no page break)
             self._add_exercise_recommendations(story, record_data)
             
             # Footer
@@ -225,11 +230,20 @@ class PDFExporter:
             story = []
             
             # Header section
-            self._add_header(story, record_data, include_date=False)
+            self._add_header(story, record_data, include_date=True)
             story.append(Spacer(1, 12))
             
-            # User summary
-            self._add_user_summary(story, record_data)
+            # Combined first page with bigger images and user info
+            if self._has_images(record_data):
+                self._add_captured_images_section_large(story, record_data)
+                story.append(Spacer(1, 15))
+                
+                # Add user summary under images on same page
+                self._add_user_summary_compact(story, record_data)
+            else:
+                # No images, just user summary
+                self._add_user_summary(story, record_data)
+            
             story.append(Spacer(1, 15))
             
             # Nutrition analysis
@@ -238,12 +252,13 @@ class PDFExporter:
             
             # Somatotype analysis
             self._add_somatotype_section(story, record_data)
-            story.append(PageBreak())
+            story.append(Spacer(1, 15))  # Continue on same page to save space
             
-            # Diet recommendations
+            # Diet recommendations - continue under somatotype analysis
             self._add_diet_recommendations(story, record_data)
+            story.append(Spacer(1, 15))  # Small space before fitness
             
-            # Exercise recommendations
+            # Exercise recommendations - continue under diet recommendations (no page break)
             self._add_exercise_recommendations(story, record_data)
             
             # Footer
@@ -275,6 +290,166 @@ class PDFExporter:
         story.append(Paragraph(subtitle, self.styles['CustomBodyText']))
         story.append(HRFlowable(width="100%", thickness=1, color=self.BRAND_PRIMARY))
     
+    def _add_captured_images_section_large(self, story: List, record_data: Dict):
+        """Add captured images section with larger images for better visibility"""
+        story.append(Paragraph("📸 Body Analysis Images", self.styles['SectionHeader']))
+        story.append(Spacer(1, 8))
+        
+        front_image_path = record_data.get('front_image_path')
+        side_image_path = record_data.get('side_image_path')
+        
+        images_data = []
+        if front_image_path and os.path.exists(front_image_path):
+            images_data.append(["Front View", front_image_path])
+        if side_image_path and os.path.exists(side_image_path):
+            images_data.append(["Side View", side_image_path])
+        
+        if images_data:
+            # Create table for larger images
+            image_row = []
+            
+            for label, image_path in images_data:
+                try:
+                    # Larger image size for better visibility
+                    img = self._prepare_image_for_pdf(image_path, max_width=8*cm, max_height=11*cm)
+                    if img:
+                        cell_data = [
+                            img,
+                            Paragraph(f"<b>{label}</b>", self.styles['CustomCaption'])
+                        ]
+                        image_row.append(cell_data)
+                except Exception as e:
+                    print(f"Error processing image {image_path}: {e}")
+                    image_row.append([
+                        Paragraph("Image not available", self.styles['CustomCaption']),
+                        Paragraph(f"<b>{label}</b>", self.styles['CustomCaption'])
+                    ])
+            
+            if image_row:
+                # Create table with larger images side by side
+                if len(image_row) == 2:
+                    table_data = [
+                        [image_row[0][0], image_row[1][0]],  # Images
+                        [image_row[0][1], image_row[1][1]]   # Labels
+                    ]
+                    image_table = Table(table_data, colWidths=[8.5*cm, 8.5*cm])
+                else:
+                    table_data = [[image_row[0][0]], [image_row[0][1]]]
+                    image_table = Table(table_data, colWidths=[8.5*cm])
+                
+                image_table.setStyle(TableStyle([
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),  # Images centered vertically
+                    ('VALIGN', (0, 1), (-1, 1), 'TOP'),     # Labels at top
+                    ('BACKGROUND', (0, 1), (-1, 1), self.BRAND_SECONDARY),
+                    ('GRID', (0, 0), (-1, -1), 1, self.BRAND_GRAY_LIGHT),
+                    ('TOPPADDING', (0, 0), (-1, -1), 6),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                ]))
+                story.append(image_table)
+        else:
+            story.append(Paragraph("Images not available for this analysis.", self.styles['CustomBodyText']))
+
+    def _add_user_summary_compact(self, story: List, record_data: Dict):
+        """Add compact user summary designed to fit under images on the same page"""
+        story.append(Paragraph("👤 User Profile", self.styles['SectionHeader']))
+        
+        try:
+            session_id = record_data.get('session_id')
+            
+            # Get complete user data from database if session_id exists
+            if session_id:
+                user_data = self.db_manager.get_user_by_session(session_id)
+                if user_data:
+                    # Use database data
+                    name = user_data.get('name', 'Unknown User')
+                    gender = user_data.get('gender', 'Unknown')
+                    age = user_data.get('age', 'N/A')
+                    height = user_data.get('height_cm', 'N/A')
+                    weight = user_data.get('weight_kg', 'N/A')
+                    activity_level = user_data.get('activity_level', 'Not specified')
+                    fitness_goals = user_data.get('fitness_goals', 'Not specified')
+                    exercise_type = user_data.get('exercise_type', 'bodyweight')
+                    exercise_complexity = user_data.get('exercise_complexity', 'beginner')
+                    
+                    print(f"DEBUG - PDF: Loaded user data from database for session {session_id}")
+                else:
+                    # Fallback to record_data
+                    name = record_data.get('name', record_data.get('user_name', 'Unknown User'))
+                    gender = record_data.get('gender', 'Unknown')
+                    age = record_data.get('age', 'N/A')
+                    height = record_data.get('height', record_data.get('height_cm', 'N/A'))
+                    weight = record_data.get('weight', record_data.get('weight_kg', 'N/A'))
+                    activity_level = record_data.get('activity_level', 'Not specified')
+                    fitness_goals = record_data.get('goal', record_data.get('fitness_goals', 'Not specified'))
+                    exercise_type = record_data.get('exercise_type', 'bodyweight')
+                    exercise_complexity = record_data.get('exercise_complexity', 'beginner')
+            else:
+                # Use record_data directly
+                name = record_data.get('name', record_data.get('user_name', 'Unknown User'))
+                gender = record_data.get('gender', 'Unknown')
+                age = record_data.get('age', 'N/A')
+                height = record_data.get('height', record_data.get('height_cm', 'N/A'))
+                weight = record_data.get('weight', record_data.get('weight_kg', 'N/A'))
+                activity_level = record_data.get('activity_level', 'Not specified')
+                fitness_goals = record_data.get('goal', record_data.get('fitness_goals', 'Not specified'))
+                exercise_type = record_data.get('exercise_type', 'bodyweight')
+                exercise_complexity = record_data.get('exercise_complexity', 'beginner')
+            
+            # Get somatotype classification
+            somatotype_class = 'mesomorph'
+            if session_id:
+                somatotype_data = self.db_manager.get_somatotype_classification(session_id)
+                if somatotype_data:
+                    somatotype_class = somatotype_data.get('somatotype_class', 'mesomorph')
+            
+            # Create compact 4-column table for efficient space usage
+            user_data_compact = [
+                ['Name:', name, 'Gender:', gender.title()],
+                ['Age:', f"{age} years" if age != 'N/A' else 'N/A', 'Body Type:', somatotype_class.replace('-', ' ').title()],
+                ['Height:', f"{height} cm" if height != 'N/A' else 'N/A', 'Weight:', f"{weight} kg" if weight != 'N/A' else 'N/A'],
+                ['Activity:', activity_level.replace('_', ' ').title(), 'Goal:', fitness_goals.replace('_', ' ').title()],
+                ['Exercise Type:', exercise_type.title(), 'Level:', exercise_complexity.title()]
+            ]
+            
+            user_table_compact = Table(user_data_compact, colWidths=[2.5*cm, 4*cm, 2.5*cm, 4*cm])
+            user_table_compact.setStyle(TableStyle([
+                # Label columns styling
+                ('BACKGROUND', (0, 0), (0, -1), self.BRAND_SECONDARY),
+                ('BACKGROUND', (2, 0), (2, -1), self.BRAND_SECONDARY),
+                ('TEXTCOLOR', (0, 0), (-1, -1), self.BRAND_GRAY_DARK),
+                ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+                ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+                ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+                ('ALIGN', (3, 0), (3, -1), 'LEFT'),
+                
+                # Font styling
+                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+                ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+                ('FONTNAME', (3, 0), (3, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                
+                # Grid and padding - compact spacing
+                ('GRID', (0, 0), (-1, -1), 0.5, self.BRAND_GRAY_LIGHT),
+                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                
+                # Alternating row colors
+                ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, self.BRAND_SECONDARY])
+            ]))
+            story.append(user_table_compact)
+            
+        except Exception as e:
+            print(f"Error adding compact user summary: {e}")
+            # Fallback display
+            fallback_text = f"<b>User:</b> {record_data.get('name', 'Unknown')} | <b>Analysis Date:</b> {record_data.get('session_date', 'N/A')}"
+            story.append(Paragraph(fallback_text, self.styles['BodyText']))
+
     def _add_captured_images_section(self, story: List, record_data: Dict):
         """Add captured images section for history detail"""
         story.append(Paragraph("📸 Captured Images", self.styles['SectionHeader']))
@@ -332,87 +507,123 @@ class PDFExporter:
             story.append(Paragraph("Images not available for this analysis.", self.styles['CustomBodyText']))
     
     def _add_user_summary(self, story: List, record_data: Dict):
-        """Add comprehensive user summary with all preferences"""
-        name = record_data.get('name', 'Unknown User')
-        gender = record_data.get('gender', 'Unknown')
-        age = record_data.get('age', 'N/A')
-        goal = record_data.get('goal', 'Not specified')
-        
-        # Add additional user preferences
-        weight = record_data.get('weight', 'N/A')
-        height = record_data.get('height', 'N/A')
-        activity_level = record_data.get('activity_level', 'Not specified')
-        dietary_restrictions = record_data.get('dietary_restrictions', 'None')
-        exercise_preference = record_data.get('exercise_preference', 'Not specified')
-        somatotype_class = record_data.get('somatotype_class', 'Not analyzed')
-        
-        story.append(Paragraph("👤 Complete Personal Profile", self.styles['SectionHeader']))
-        
-        # Split into two columns for better space usage
-        basic_info_data = [
-            ['Name:', name],
-            ['Gender:', gender.title()],
-            ['Age:', f"{age} years old" if age != 'N/A' else 'N/A'],
-            ['Goal:', goal]
-        ]
-        
-        profile_info_data = [
-            ['Weight:', f"{weight} kg" if weight != 'N/A' else 'N/A'],
-            ['Height:', f"{height} cm" if height != 'N/A' else 'N/A'],
-            ['Activity Level:', activity_level],
-            ['Body Type:', somatotype_class.title()]
-        ]
-        
-        # Create side-by-side tables for better space efficiency
-        combined_table_data = []
-        max_rows = max(len(basic_info_data), len(profile_info_data))
-        
-        for i in range(max_rows):
-            row = []
-            if i < len(basic_info_data):
-                row.extend(basic_info_data[i])
-            else:
-                row.extend(['', ''])
-            if i < len(profile_info_data):
-                row.extend(profile_info_data[i])
-            else:
-                row.extend(['', ''])
-            combined_table_data.append(row)
-        
-        user_table = Table(combined_table_data, colWidths=[3*cm, 5*cm, 3*cm, 5*cm])
-        user_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), self.BRAND_SECONDARY),
-            ('BACKGROUND', (2, 0), (2, -1), self.BRAND_SECONDARY),
-            ('TEXTCOLOR', (0, 0), (-1, -1), self.BRAND_GRAY_DARK),
-            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
-            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-            ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
-            ('ALIGN', (3, 0), (3, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-            ('FONTNAME', (3, 0), (3, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('GRID', (0, 0), (-1, -1), 0.5, self.BRAND_GRAY_LIGHT),
-            ('LEFTPADDING', (0, 0), (-1, -1), 8),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ]))
-        story.append(user_table)
-        
-        # Add preferences section if available
-        if dietary_restrictions != 'None' or exercise_preference != 'Not specified':
-            story.append(Spacer(1, 10))
-            story.append(Paragraph("🎯 Personal Preferences", self.styles['SubsectionHeader']))
+        """Add comprehensive user summary with all data from database"""
+        try:
+            session_id = record_data.get('session_id')
             
-            preferences_data = []
-            if dietary_restrictions != 'None':
-                preferences_data.append(['Dietary Restrictions:', dietary_restrictions])
-            if exercise_preference != 'Not specified':
-                preferences_data.append(['Exercise Preference:', exercise_preference])
+            # Get complete user data from database if session_id exists
+            if session_id:
+                # Get user data from database
+                user_data = self.db_manager.get_user_by_session(session_id)
+                if user_data:
+                    # Use database data
+                    name = user_data.get('name', 'Unknown User')
+                    gender = user_data.get('gender', 'Unknown')
+                    age = user_data.get('age', 'N/A')
+                    height = user_data.get('height_cm', 'N/A')
+                    weight = user_data.get('weight_kg', 'N/A')
+                    activity_level = user_data.get('activity_level', 'Not specified')
+                    fitness_goals = user_data.get('fitness_goals', 'Not specified')
+                    exercise_type = user_data.get('exercise_type', 'bodyweight')
+                    exercise_complexity = user_data.get('exercise_complexity', 'beginner')
+                    created_at = user_data.get('created_at', '')
+                else:
+                    # Fallback to record_data
+                    name = record_data.get('name', 'Unknown User')
+                    gender = record_data.get('gender', 'Unknown')
+                    age = record_data.get('age', 'N/A')
+                    height = record_data.get('height', 'N/A')
+                    weight = record_data.get('weight', 'N/A')
+                    activity_level = record_data.get('activity_level', 'Not specified')
+                    fitness_goals = record_data.get('goal', 'Not specified')
+                    exercise_type = record_data.get('exercise_preference', 'bodyweight')
+                    exercise_complexity = 'beginner'
+                    created_at = ''
+            else:
+                # Use record_data directly
+                name = record_data.get('name', 'Unknown User')
+                gender = record_data.get('gender', 'Unknown')
+                age = record_data.get('age', 'N/A')
+                height = record_data.get('height', 'N/A')
+                weight = record_data.get('weight', 'N/A')
+                activity_level = record_data.get('activity_level', 'Not specified')
+                fitness_goals = record_data.get('goal', 'Not specified')
+                exercise_type = record_data.get('exercise_preference', 'bodyweight')
+                exercise_complexity = 'beginner'
+                created_at = ''
             
-            if preferences_data:
+            # Get somatotype classification from database
+            somatotype_class = 'Not analyzed'
+            if session_id:
+                somatotype_data = self.db_manager.get_somatotype_classification(session_id)
+                if somatotype_data:
+                    somatotype_class = somatotype_data.get('somatotype_class', 'mesomorph')
+            
+            story.append(Paragraph("👤 Complete Personal Profile", self.styles['SectionHeader']))
+            
+            # Split into two columns for better space usage
+            basic_info_data = [
+                ['Name:', name],
+                ['Gender:', gender.title()],
+                ['Age:', f"{age} years old" if age != 'N/A' else 'N/A'],
+                ['Goals:', fitness_goals]
+            ]
+            
+            profile_info_data = [
+                ['Weight:', f"{weight} kg" if weight != 'N/A' else 'N/A'],
+                ['Height:', f"{height} cm" if height != 'N/A' else 'N/A'],
+                ['Activity Level:', activity_level],
+                ['Body Type:', somatotype_class.title()]
+            ]
+            
+            # Create side-by-side tables for better space efficiency
+            combined_table_data = []
+            max_rows = max(len(basic_info_data), len(profile_info_data))
+            
+            for i in range(max_rows):
+                row = []
+                if i < len(basic_info_data):
+                    row.extend(basic_info_data[i])
+                else:
+                    row.extend(['', ''])
+                if i < len(profile_info_data):
+                    row.extend(profile_info_data[i])
+                else:
+                    row.extend(['', ''])
+                combined_table_data.append(row)
+            
+            user_table = Table(combined_table_data, colWidths=[3*cm, 5*cm, 3*cm, 5*cm])
+            user_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (0, -1), self.BRAND_SECONDARY),
+                ('BACKGROUND', (2, 0), (2, -1), self.BRAND_SECONDARY),
+                ('TEXTCOLOR', (0, 0), (-1, -1), self.BRAND_GRAY_DARK),
+                ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+                ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+                ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+                ('ALIGN', (3, 0), (3, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+                ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+                ('FONTNAME', (3, 0), (3, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 0.5, self.BRAND_GRAY_LIGHT),
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            story.append(user_table)
+            
+            # Add exercise preferences section
+            if exercise_type != 'bodyweight' or exercise_complexity != 'beginner':
+                story.append(Spacer(1, 10))
+                story.append(Paragraph("🎯 Exercise Preferences", self.styles['SubsectionHeader']))
+                
+                preferences_data = [
+                    ['Exercise Type:', exercise_type.title()],
+                    ['Complexity Level:', exercise_complexity.title()]
+                ]
+                
                 pref_table = Table(preferences_data, colWidths=[4*cm, 8*cm])
                 pref_table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (0, -1), self.BRAND_SECONDARY),
@@ -429,21 +640,155 @@ class PDFExporter:
                     ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
                 ]))
                 story.append(pref_table)
+                
+        except Exception as e:
+            print(f"Error adding user summary: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fallback to basic summary
+            story.append(Paragraph("👤 Personal Information", self.styles['SectionHeader']))
+            story.append(Paragraph("User information could not be loaded completely.", self.styles['CustomBodyText']))
     
     def _add_nutrition_section(self, story: List, record_data: Dict):
-        """Add nutrition analysis section"""
-        story.append(Paragraph("🍽️ Nutritional Analysis", self.styles['SectionHeader']))
+        """Add nutrition analysis section using food_data_loader approach"""
+        story.append(Paragraph("Nutritional Analysis", self.styles['SectionHeader']))
         
-        # Calorie information
-        calories = record_data.get('calories', 2000)
-        goal = record_data.get('goal', 'Maintain Weight')
-        
-        calorie_text = f"<b>Daily Caloric Target:</b> {calories} calories<br/><b>Goal:</b> {goal}"
-        story.append(Paragraph(calorie_text, self.styles['HighlightBox']))
-        story.append(Spacer(1, 15))
-        
-        # Macronutrient chart
-        self._add_macronutrient_chart(story, record_data)
+        try:
+            session_id = record_data.get('session_id')
+            calories = 2000
+            protein_g = 130
+            carbs_g = 200
+            fat_g = 60
+            bmr = None
+            tdee = None
+            
+            if session_id:
+                # Get complete nutrition data from database
+                diet_data = self.db_manager.get_diet_recommendations(session_id)
+                if diet_data:
+                    calories = int(diet_data.get('calories', 2000))
+                    protein_g = int(diet_data.get('protein_g', 130))
+                    carbs_g = int(diet_data.get('carbs_g', 200))
+                    fat_g = int(diet_data.get('fat_g', 60))
+                    bmr = diet_data.get('bmr')
+                    tdee = diet_data.get('tdee')
+                    print(f"DEBUG - PDF: Loaded nutrition data: {calories} cal, {protein_g}g protein, {carbs_g}g carbs, {fat_g}g fat")
+                else:
+                    # Fallback: try to get from record_data
+                    calories = record_data.get('calories', 2000)
+                    print("DEBUG - PDF: Using fallback nutrition data")
+            else:
+                calories = record_data.get('calories', 2000)
+            
+            # Get user goal for context
+            goal = record_data.get('goal', 'Maintain Weight')
+            if session_id:
+                user_data = self.db_manager.get_user_by_session(session_id)
+                if user_data:
+                    goal = user_data.get('fitness_goals', goal)
+            
+            # Calorie information with additional details
+            calorie_text = f"<b>Daily Caloric Target:</b> {calories} calories<br/><b>Goal:</b> {goal}"
+            if bmr and tdee:
+                calorie_text += f"<br/><b>BMR:</b> {bmr} calories | <b>TDEE:</b> {tdee} calories"
+            
+            story.append(Paragraph(calorie_text, self.styles['HighlightBox']))
+            story.append(Spacer(1, 15))
+            
+            # Calculate macronutrient percentages (like food_data_loader does)
+            protein_calories = protein_g * 4
+            carbs_calories = carbs_g * 4  
+            fat_calories = fat_g * 9
+            total_macro_calories = protein_calories + carbs_calories + fat_calories
+            
+            if total_macro_calories > 0:
+                protein_pct = int((protein_calories / total_macro_calories) * 100)
+                carbs_pct = int((carbs_calories / total_macro_calories) * 100) 
+                fat_pct = int((fat_calories / total_macro_calories) * 100)
+            else:
+                protein_pct = 30
+                carbs_pct = 45
+                fat_pct = 25
+            
+            # Detailed macronutrient breakdown table
+            macro_data = [
+                ['Macronutrient', 'Amount (g)', 'Calories', 'Percentage', 'Quality Tips'],
+                ['Protein', f'{protein_g}g', f'{protein_calories} kcal', f'{protein_pct}%', 'Choose lean sources: chicken, fish, legumes'],
+                ['Carbohydrates', f'{carbs_g}g', f'{carbs_calories} kcal', f'{carbs_pct}%', 'Focus on complex carbs: whole grains, vegetables'],
+                ['Fats', f'{fat_g}g', f'{fat_calories} kcal', f'{fat_pct}%', 'Include healthy fats: avocados, nuts, olive oil']
+            ]
+            
+            macro_table = Table(macro_data, colWidths=[3*cm, 2.5*cm, 2.5*cm, 2*cm, 6*cm])
+            macro_table.setStyle(TableStyle([
+                # Header styling
+                ('BACKGROUND', (0, 0), (-1, 0), self.BRAND_PRIMARY),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                
+                # Data styling
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('TEXTCOLOR', (0, 1), (-1, -1), self.BRAND_GRAY_DARK),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('ALIGN', (0, 1), (3, -1), 'CENTER'),  # Align numbers center
+                ('ALIGN', (4, 1), (4, -1), 'LEFT'),    # Align tips left
+                
+                # Grid and padding
+                ('GRID', (0, 0), (-1, -1), 0.5, self.BRAND_GRAY_LIGHT),
+                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                
+                # Row backgrounds
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, self.BRAND_SECONDARY])
+            ]))
+            story.append(macro_table)
+            story.append(Spacer(1, 15))
+            
+            # Add macronutrient chart if possible
+            self._add_macronutrient_chart_from_data(story, protein_pct, carbs_pct, fat_pct)
+            
+        except Exception as e:
+            print(f"Error adding nutrition section: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fallback to simple nutrition info
+            calories = record_data.get('calories', 2000)
+            goal = record_data.get('goal', 'Maintain Weight')
+            calorie_text = f"<b>Daily Caloric Target:</b> {calories} calories<br/><b>Goal:</b> {goal}"
+            story.append(Paragraph(calorie_text, self.styles['HighlightBox']))
+
+    def _add_macronutrient_chart_from_data(self, story: List, protein_pct: int, carbs_pct: int, fat_pct: int):
+        """Add macronutrient distribution chart using calculated percentages"""
+        try:
+            # Create pie chart
+            fig, ax = plt.subplots(figsize=(8, 6))
+            
+            sizes = [protein_pct, carbs_pct, fat_pct]
+            labels = [f'Protein ({protein_pct}%)', f'Carbs ({carbs_pct}%)', f'Fat ({fat_pct}%)']
+            colors = ['#28A745', '#FFC107', '#2E5266']
+            
+            wedges, texts, autotexts = ax.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%',
+                                             startangle=90, textprops={'fontsize': 12})
+            
+            ax.set_title('Daily Macronutrient Distribution', fontsize=16, fontweight='bold', pad=20)
+            
+            # Save to BytesIO
+            img_buffer = BytesIO()
+            plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+            plt.close()
+            img_buffer.seek(0)
+            
+            # Add to story
+            img = Image(img_buffer, width=12*cm, height=9*cm)
+            story.append(img)
+            story.append(Spacer(1, 10))
+            
+        except Exception as e:
+            print(f"Error creating macronutrient chart: {e}")
     
     def _add_macronutrient_chart(self, story: List, record_data: Dict):
         """Add macronutrient distribution chart"""
@@ -492,41 +837,69 @@ class PDFExporter:
         story.append(Spacer(1, 10))
     
     def _add_somatotype_section(self, story: List, record_data: Dict):
-        """Add somatotype analysis section"""
+        """Add somatotype analysis section with complete database data"""
         story.append(Paragraph("🏃 Body Type Analysis", self.styles['SectionHeader']))
         
-        # Get somatotype data
-        ectomorph = 33
-        mesomorph = 33
-        endomorph = 34
-        somatotype_class = "Balanced"
+        # Default values (mesomorph fallback, not balanced)
+        endomorphy = 3.9
+        mesomorphy = 4.9
+        ectomorphy = 3.6
+        somatotype_class = "mesomorph"
+        height_weight_ratio = None
         
         session_id = record_data.get('session_id')
         if session_id:
             try:
-                from utils.database import DatabaseManager
-                db_manager = DatabaseManager()
-                soma_data = db_manager.get_somatotype_classification(session_id)
+                # Get complete somatotype data from database
+                somatotype_data = self.db_manager.get_somatotype_classification(session_id)
                 
-                if soma_data:
-                    ectomorph = float(soma_data.get('ectomorph', 33))
-                    mesomorph = float(soma_data.get('mesomorph', 33))
-                    endomorph = float(soma_data.get('endomorph', 34))
-                    somatotype_class = soma_data.get('somatotype_class', 'Balanced')
+                if somatotype_data:
+                    # Extract all database columns
+                    endomorphy = float(somatotype_data.get('endomorphy', 3.9))
+                    mesomorphy = float(somatotype_data.get('mesomorphy', 4.9))
+                    ectomorphy = float(somatotype_data.get('ectomorphy', 3.6))
+                    somatotype_class = somatotype_data.get('somatotype_class', 'mesomorph').lower()
+                    height_weight_ratio = somatotype_data.get('height_weight_ratio')
+                    
+                    # Ensure valid classification (one of the 6 classifications)
+                    valid_classifications = ['ectomorph', 'mesomorph', 'endomorph', 
+                                           'ecto-mesomorph', 'meso-endomorph', 'endo-ectomorph']
+                    if somatotype_class not in valid_classifications:
+                        somatotype_class = 'mesomorph'  # fallback to mesomorph, not balanced
+                    
+                    print(f"DEBUG - PDF: Loaded somatotype data: endo={endomorphy}, meso={mesomorphy}, ecto={ectomorphy}, class={somatotype_class}")
+                else:
+                    print("DEBUG - PDF: No somatotype data found in database, using record_data fallback")
+                    # Try to get from record_data as fallback
+                    endomorphy = float(record_data.get('endomorphy', record_data.get('endomorph', 3.9)))
+                    mesomorphy = float(record_data.get('mesomorphy', record_data.get('mesomorph', 4.9)))
+                    ectomorphy = float(record_data.get('ectomorphy', record_data.get('ectomorph', 3.6)))
+                    somatotype_class = record_data.get('somatotype_class', record_data.get('somatotype', 'mesomorph'))
             except Exception as e:
-                print(f"Could not load somatotype data: {e}")
+                print(f"Error loading somatotype data: {e}")
+                # Additional fallback from record_data
+                endomorphy = float(record_data.get('endomorphy', record_data.get('endomorph', 3.9)))
+                mesomorphy = float(record_data.get('mesomorphy', record_data.get('mesomorph', 4.9)))
+                ectomorphy = float(record_data.get('ectomorphy', record_data.get('ectomorph', 3.6)))
+                somatotype_class = record_data.get('somatotype_class', record_data.get('somatotype', 'mesomorph'))
+        else:
+            # Try to get from record_data when no session_id
+            endomorphy = float(record_data.get('endomorphy', record_data.get('endomorph', 3.9)))
+            mesomorphy = float(record_data.get('mesomorphy', record_data.get('mesomorph', 4.9)))
+            ectomorphy = float(record_data.get('ectomorphy', record_data.get('ectomorph', 3.6)))
+            somatotype_class = record_data.get('somatotype_class', record_data.get('somatotype', 'mesomorph'))
         
-        # Classification
-        classification_text = f"<b>Your Body Type Classification:</b> {somatotype_class}"
+        # Classification with proper title case
+        classification_text = f"<b>Your Body Type Classification:</b> {somatotype_class.replace('-', ' ').title()}"
         story.append(Paragraph(classification_text, self.styles['HighlightBox']))
         story.append(Spacer(1, 15))
         
-        # Somatotype scores table
+        # Somatotype scores table with accurate decimal places
         soma_data = [
-            ['Body Type', 'Score (%)', 'Description'],
-            ['Ectomorph', f'{ectomorph:.1f}%', 'Lean & tall body type, fast metabolism'],
-            ['Mesomorph', f'{mesomorph:.1f}%', 'Athletic & muscular, responds quickly to exercise'],
-            ['Endomorph', f'{endomorph:.1f}%', 'Soft & round body type, slower metabolism']
+            ['Component', 'Score', 'Description'],
+            ['Endomorphy', f'{endomorphy:.1f}', 'Soft, round body characteristics, higher body fat'],
+            ['Mesomorphy', f'{mesomorphy:.1f}', 'Muscular, athletic build, responds well to exercise'],
+            ['Ectomorphy', f'{ectomorphy:.1f}', 'Lean, linear build, fast metabolism']
         ]
         
         soma_table = Table(soma_data, colWidths=[4*cm, 3*cm, 8*cm])
@@ -539,59 +912,149 @@ class PDFExporter:
             ('FONTSIZE', (0, 0), (-1, 0), 12),
             ('FONTSIZE', (0, 1), (-1, -1), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('GRID', (0, 0), (-1, -1), 1, self.BRAND_GRAY_LIGHT)
+            ('GRID', (0, 0), (-1, -1), 1, self.BRAND_GRAY_LIGHT),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
         ]))
         story.append(soma_table)
+        
+        # Add height-weight ratio if available
+        if height_weight_ratio is not None:
+            story.append(Spacer(1, 10))
+            ratio_text = f"<b>Height-Weight Ratio:</b> {height_weight_ratio:.2f}"
+            story.append(Paragraph(ratio_text, self.styles['CustomBodyText']))
+        
+        # Add interpretation based on classification
+        story.append(Spacer(1, 15))
+        story.append(Paragraph("<b>Body Type Characteristics:</b>", self.styles['SubsectionHeader']))
+        
+        interpretations = {
+            'ectomorph': "You have a naturally lean build with fast metabolism. Focus on strength training and adequate nutrition for muscle development.",
+            'mesomorph': "You have an athletic build that responds well to exercise. Balanced training approach works best for you.",
+            'endomorph': "You have a naturally rounder build with slower metabolism. Focus on cardio and portion control for optimal health.",
+            'ecto-mesomorph': "You combine lean characteristics with muscular potential. Strength training with adequate rest is key.",
+            'meso-endomorph': "You have muscular build with tendency to store fat. Balance strength training with cardio.",
+            'endo-ectomorph': "You combine soft characteristics with linear build. Consistent exercise and nutrition are important."
+        }
+        
+        interpretation = interpretations.get(somatotype_class, interpretations['mesomorph'])
+        story.append(Paragraph(interpretation, self.styles['CustomBodyText']))
     
     def _add_diet_recommendations(self, story: List, record_data: Dict):
-        """Add comprehensive diet recommendations section - copy GUI approach exactly"""
+        """Add comprehensive diet recommendations using template_id from database"""
         story.append(Paragraph("🥗 Diet Recommendations", self.styles['SectionHeader']))
         
         try:
-            # Load data exactly like GUI - database first, then local files
             session_id = record_data.get('session_id')
-            meal_data = None
+            template_id = None
             
             if session_id:
-                # Try database first (same as GUI)
+                # Get template_id from database diet_recommendations table
                 diet_data = self.db_manager.get_diet_recommendations(session_id)
-                if diet_data and 'meal_recommendations' in diet_data:
-                    meal_recommendations_raw = diet_data['meal_recommendations']
+                if diet_data:
+                    template_id = diet_data.get('template_id')
+                    print(f"DEBUG - PDF: Found template_id in database: {template_id}")
                     
-                    # Parse JSON if needed (exact GUI logic)
-                    if isinstance(meal_recommendations_raw, str):
-                        try:
-                            meal_data = json.loads(meal_recommendations_raw)
-                            print("DEBUG - PDF: Successfully parsed meal recommendations from database")
-                        except json.JSONDecodeError:
-                            print("ERROR - PDF: Failed to parse meal recommendations JSON")
-                            meal_data = None
-                    else:
-                        meal_data = meal_recommendations_raw
+                    # If we have meal_recommendations in database, use them first
+                    if 'meal_recommendations' in diet_data:
+                        meal_recommendations_raw = diet_data['meal_recommendations']
                         
-                    # Check if meal data has proper structure
-                    if meal_data:
-                        if 'meals' in meal_data:
-                            meals = meal_data['meals']
-                            print(f"DEBUG - PDF: Found meals structure with keys: {list(meals.keys())}")
-                            self._add_meals_from_gui_format(story, meals)
-                            return
-                        elif any(key in meal_data for key in ['breakfast', 'lunch', 'dinner', 'snack']):
-                            print("DEBUG - PDF: Found direct meal structure")
-                            self._add_meals_from_gui_format(story, meal_data)
-                            return
-                        else:
-                            print("DEBUG - PDF: No recognized meal structure found in database")
+                        if isinstance(meal_recommendations_raw, str):
+                            try:
+                                meal_data = json.loads(meal_recommendations_raw)
+                                if 'meals' in meal_data:
+                                    meals = meal_data['meals']
+                                    print(f"DEBUG - PDF: Using database meal data")
+                                    self._add_meals_from_gui_format(story, meals)
+                                    return
+                                elif any(key in meal_data for key in ['breakfast', 'lunch', 'dinner', 'snack']):
+                                    print(f"DEBUG - PDF: Using database direct meal structure")
+                                    self._add_meals_from_gui_format(story, meal_data)
+                                    return
+                            except json.JSONDecodeError:
+                                pass
             
-            # No database data, use local CSV files like GUI does
-            print("DEBUG - PDF: Loading from CSV templates like GUI")
-            self._add_csv_based_recommendations(story, record_data)
+            # Load from CSV template using template_id or fallback method
+            print("DEBUG - PDF: Loading from CSV templates using template_id approach")
+            self._add_template_based_recommendations(story, record_data, template_id)
             
         except Exception as e:
             print(f"Error loading diet recommendations: {e}")
             import traceback
             traceback.print_exc()
             # Final fallback
+            self._add_fallback_diet_recommendations(story, record_data)
+
+    def _add_template_based_recommendations(self, story: List, record_data: Dict, template_id: str = None):
+        """Load diet recommendations using template_id from database or CSV matching"""
+        try:
+            # Load diet templates CSV (same path as food_data_loader)
+            diet_templates_path = os.path.join(PROJECT_DIR, "diet_templates.csv")
+            if not os.path.exists(diet_templates_path):
+                print(f"Diet templates not found at: {diet_templates_path}")
+                self._add_fallback_diet_recommendations(story, record_data)
+                return
+                
+            import pandas as pd
+            templates_df = pd.read_csv(diet_templates_path)
+            
+            template = None
+            
+            # Try to use template_id if available
+            if template_id:
+                matching_template = templates_df[templates_df['template_id'] == template_id]
+                if not matching_template.empty:
+                    template = matching_template.iloc[0]
+                    print(f"DEBUG - PDF: Found template by ID: {template_id}")
+            
+            # Fallback to matching by somatotype and goal
+            if template is None:
+                somatotype_class = record_data.get('somatotype_class', 'mesomorph').lower()
+                goal = record_data.get('goal', 'weight_loss').lower().replace(' ', '_')
+                
+                # Try to find matching template by somatotype and goal
+                matching_template = templates_df[
+                    (templates_df['somatotype'].str.lower() == somatotype_class) &
+                    (templates_df['goal'].str.lower() == goal)
+                ]
+                
+                if matching_template.empty:
+                    # Try fallback with just somatotype
+                    matching_template = templates_df[
+                        templates_df['somatotype'].str.lower() == somatotype_class
+                    ]
+                
+                if matching_template.empty:
+                    # Use first available template
+                    matching_template = templates_df.head(1)
+                
+                template = matching_template.iloc[0]
+                print(f"DEBUG - PDF: Found template by matching: {somatotype_class}, {goal}")
+            
+            # Extract template information
+            protein_g = int(template.get('protein_g', 130))
+            carbs_g = int(template.get('carbs_g', 200))
+            fats_g = int(template.get('fats_g', 60))
+            
+            # Parse foods list (same as food_data_loader approach)
+            foods_list = str(template.get('foods', '')).split(', ')
+            
+            # Add sections matching GUI layout
+            self._add_diet_principles_section_csv(story, template.get('somatotype', 'mesomorph'), template.get('goal', 'weight_loss'))
+            story.append(Spacer(1, 15))
+            
+            self._add_fitness_strategy_section_csv(story, template.get('somatotype', 'mesomorph'))  
+            story.append(Spacer(1, 15))
+            
+            # Add meal recommendations by category using food_data_loader
+            self._add_meal_recommendations_by_category(story, foods_list, protein_g, carbs_g, fats_g)
+            
+        except Exception as e:
+            print(f"Error loading template-based recommendations: {e}")
+            import traceback
+            traceback.print_exc()
             self._add_fallback_diet_recommendations(story, record_data)
 
     def _add_meals_from_gui_format(self, story: List, meals: Dict):
@@ -1073,33 +1536,43 @@ class PDFExporter:
         }
         
         # Process foods and get detailed info
+        print(f"DEBUG - PDF: Processing {len(foods_list)} foods for meal categorization")
         for food_name in foods_list:
             if not food_name or not food_name.strip():
                 continue
                 
             # Get detailed food info from our food database
             food_info = self.food_loader.get_food_info(food_name.strip())
+            print(f"DEBUG - PDF: Processing food '{food_name.strip()}' - Found in DB: {food_info is not None}")
+            
+            if food_info:
+                # Use timing info from database
+                meal_timing = food_info.get('Meal_Timing', 'any time').lower()
+                print(f"DEBUG - PDF: Food '{food_name}' timing: '{meal_timing}'")
             
             if food_info:
                 # Use timing info from database
                 meal_timing = food_info.get('Meal_Timing', 'any time').lower()
                 
-                # Map timing to our categories
+                # Map timing to our categories - handle multiple timings properly
                 if 'breakfast' in meal_timing or 'morning' in meal_timing:
                     meal_categories['breakfast'].append(food_info)
-                elif 'lunch' in meal_timing or 'midday' in meal_timing:
+                if 'lunch' in meal_timing or 'midday' in meal_timing:
                     meal_categories['lunch'].append(food_info)  
-                elif 'dinner' in meal_timing or 'evening' in meal_timing:
+                if 'dinner' in meal_timing or 'evening' in meal_timing:
                     meal_categories['dinner'].append(food_info)
-                elif 'snack' in meal_timing:
+                if 'snack' in meal_timing:
                     meal_categories['snack'].append(food_info)
-                else:
-                    # Distribute across all meals if timing is "any time"
-                    meal_categories['breakfast'].append(food_info)
-                    meal_categories['lunch'].append(food_info)
-                    meal_categories['dinner'].append(food_info)
-                    if len(meal_categories['snack']) < 3:  # Limit snacks
-                        meal_categories['snack'].append(food_info)
+                    print(f"DEBUG - PDF: Added {food_info.get('Food_Item')} to snacks from timing: {meal_timing}")
+                
+                # If no specific timing found, distribute to appropriate meals
+                if not any(keyword in meal_timing for keyword in ['breakfast', 'lunch', 'dinner', 'snack', 'morning', 'midday', 'evening']):
+                    if 'flexible' in meal_timing or 'any time' in meal_timing:
+                        meal_categories['breakfast'].append(food_info)
+                        meal_categories['lunch'].append(food_info)
+                        meal_categories['dinner'].append(food_info)
+                        if len(meal_categories['snack']) < 3:  # Limit snacks from flexible foods
+                            meal_categories['snack'].append(food_info)
             else:
                 # Fallback if food not found in database
                 fallback_info = {
@@ -1112,7 +1585,7 @@ class PDFExporter:
                 for category in meal_categories:
                     meal_categories[category].append(fallback_info)
         
-        # Display meals with icons
+        # Display meals with icons - ensure snacks are always included
         meal_icons = {
             'breakfast': '🌅',
             'lunch': '🌞',
@@ -1120,9 +1593,36 @@ class PDFExporter:
             'snack': '🍎'
         }
         
-        for meal_type, foods in meal_categories.items():
-            if not foods:
+        # Ensure snacks have some content if empty - force default snacks
+        if not meal_categories['snack'] or len(meal_categories['snack']) == 0:
+            # Add default healthy snack options
+            default_snacks = [
+                {'Food_Item': 'Greek Yogurt', 'Calories_kcal': 59, 'Enhanced_Category': 'Dairy', 'Overall_Quality': 'Excellent'},
+                {'Food_Item': 'Mixed Nuts', 'Calories_kcal': 607, 'Enhanced_Category': 'Nuts & Seeds', 'Overall_Quality': 'Very Good'},
+                {'Food_Item': 'Apple with Almond Butter', 'Calories_kcal': 95, 'Enhanced_Category': 'Fruit', 'Overall_Quality': 'Excellent'},
+                {'Food_Item': 'Protein Smoothie', 'Calories_kcal': 150, 'Enhanced_Category': 'Beverage', 'Overall_Quality': 'Good'}
+            ]
+            meal_categories['snack'] = default_snacks[:3]
+            print(f"DEBUG - PDF: Added {len(default_snacks[:3])} default snacks")
+        
+        # Display meals in specific order to ensure snacks appear
+        meal_order = ['breakfast', 'lunch', 'dinner', 'snack']
+        
+        for meal_type in meal_order:
+            if meal_type not in meal_categories:
                 continue
+                
+            foods = meal_categories[meal_type]
+            if not foods and meal_type != 'snack':  # Always show snacks even if empty
+                continue
+            
+            # Force snack display with defaults if needed
+            if meal_type == 'snack' and not foods:
+                foods = [
+                    {'Food_Item': 'Greek Yogurt', 'Calories_kcal': 59, 'Enhanced_Category': 'Dairy', 'Overall_Quality': 'Excellent'},
+                    {'Food_Item': 'Mixed Nuts', 'Calories_kcal': 607, 'Enhanced_Category': 'Nuts & Seeds', 'Overall_Quality': 'Very Good'},
+                    {'Food_Item': 'Apple with Almond Butter', 'Calories_kcal': 95, 'Enhanced_Category': 'Fruit', 'Overall_Quality': 'Excellent'}
+                ]
                 
             icon = meal_icons.get(meal_type, '🍽️')
             story.append(Paragraph(f"{icon} {meal_type.title()}", self.styles['SubsectionHeader']))
@@ -1139,11 +1639,15 @@ class PDFExporter:
                 category = food_info.get('Enhanced_Category', 'General')
                 quality = food_info.get('Overall_Quality', 'Good')
                 
-                # Format values
+                # Format values - ensure all are strings
                 if isinstance(calories, (int, float)) and calories > 0:
                     calories_str = f"{int(calories)}"
                 else:
                     calories_str = "N/A"
+                
+                # Ensure category and quality are strings
+                category = str(category)
+                quality = str(quality)
                 
                 # Truncate long values
                 if len(food_name) > 20:
@@ -1305,59 +1809,42 @@ class PDFExporter:
             traceback.print_exc()
     
     def _add_gym_exercises_gui_format(self, story: List, exercise_data: Dict):
-        """Create gym exercise display with push/pull/legs split (copying GUI)"""
+        """Create gym exercise display with bulleted lists for push/pull/legs (copying GUI)"""
         try:
             story.append(Paragraph("Exercise Categories", self.styles['SubsectionHeader']))
             
-            # Create table for push/pull/legs layout
-            exercise_table_data = []
-            headers = ["🔥 Push", "⬇️ Pull", "🦵 Legs"]
-            exercise_table_data.append(headers)
+            # Get exercises - show ALL exercises, not just first 6
+            push_exercises = exercise_data.get('push_exercises', [])
+            pull_exercises = exercise_data.get('pull_exercises', [])
+            legs_exercises = exercise_data.get('legs_exercises', [])
             
-            # Get exercises (copying GUI limits)
-            push_exercises = exercise_data.get('push_exercises', [])[:4]
-            pull_exercises = exercise_data.get('pull_exercises', [])[:4]
-            legs_exercises = exercise_data.get('legs_exercises', [])[:4]
+            print(f"DEBUG - PDF: Exercise counts - Push: {len(push_exercises)}, Pull: {len(pull_exercises)}, Legs: {len(legs_exercises)}")
             
             # Process exercises like GUI does
             push_processed = self._process_exercise_list(push_exercises)
             pull_processed = self._process_exercise_list(pull_exercises)
             legs_processed = self._process_exercise_list(legs_exercises)
             
-            # Create rows
-            max_exercises = max(len(push_processed), len(pull_processed), len(legs_processed))
-            for i in range(max_exercises):
-                row = []
-                row.append(push_processed[i] if i < len(push_processed) else "")
-                row.append(pull_processed[i] if i < len(pull_processed) else "")
-                row.append(legs_processed[i] if i < len(legs_processed) else "")
-                exercise_table_data.append(row)
+            # Display Push exercises as bulleted list
+            if push_processed:
+                story.append(Paragraph("🔥 <b>Push Exercises</b>", self.styles['SubsectionHeader']))
+                for exercise in push_processed:
+                    story.append(Paragraph(exercise, self.styles['BodyText']))
+                story.append(Spacer(1, 10))
             
-            if len(exercise_table_data) > 1:  # Has data beyond headers
-                exercise_table = Table(exercise_table_data, colWidths=[5.5*cm, 5.5*cm, 5.5*cm])
-                exercise_table.setStyle(TableStyle([
-                    # Header style
-                    ('BACKGROUND', (0,0), (-1,0), self.BRAND_PRIMARY),
-                    ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0,0), (-1,0), 12),
-                    ('ALIGN', (0,0), (-1,0), 'CENTER'),
-                    
-                    # Data style
-                    ('TEXTCOLOR', (0,1), (-1,-1), self.BRAND_GRAY_DARK),
-                    ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
-                    ('FONTSIZE', (0,1), (-1,-1), 9),
-                    ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                    
-                    # Grid and padding
-                    ('GRID', (0,0), (-1,-1), 0.5, self.BRAND_GRAY_LIGHT),
-                    ('LEFTPADDING', (0,0), (-1,-1), 6),
-                    ('RIGHTPADDING', (0,0), (-1,-1), 6),
-                    ('TOPPADDING', (0,0), (-1,-1), 6),
-                    ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-                ]))
-                story.append(exercise_table)
-                story.append(Spacer(1, 15))
+            # Display Pull exercises as bulleted list
+            if pull_processed:
+                story.append(Paragraph("⬇️ <b>Pull Exercises</b>", self.styles['SubsectionHeader']))
+                for exercise in pull_processed:
+                    story.append(Paragraph(exercise, self.styles['BodyText']))
+                story.append(Spacer(1, 10))
+            
+            # Display Legs exercises as bulleted list
+            if legs_processed:
+                story.append(Paragraph("🦵 <b>Leg Exercises</b>", self.styles['SubsectionHeader']))
+                for exercise in legs_processed:
+                    story.append(Paragraph(exercise, self.styles['BodyText']))
+                story.append(Spacer(1, 10))
             
         except Exception as e:
             print(f"Error adding gym exercises: {e}")

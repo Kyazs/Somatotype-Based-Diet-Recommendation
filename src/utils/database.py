@@ -580,6 +580,28 @@ class DatabaseManager:
         except sqlite3.Error as e:
             print(f"Error retrieving session details: {e}")
             return {}
+
+    def get_user_by_session(self, session_id: int) -> Dict[str, Any]:
+        """Get user data by session ID"""
+        try:
+            with self.connect_db() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    SELECT u.*
+                    FROM users u
+                    JOIN analysis_sessions s ON u.id = s.user_id
+                    WHERE s.id = ?
+                """, (session_id,))
+                
+                result = cursor.fetchone()
+                if result:
+                    return dict(result)
+                return {}
+                
+        except sqlite3.Error as e:
+            print(f"Error retrieving user by session: {e}")
+            return {}
     
     def get_database_stats(self) -> Dict[str, Any]:
         """Get database statistics"""
