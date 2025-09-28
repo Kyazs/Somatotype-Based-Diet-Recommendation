@@ -52,10 +52,9 @@ class HistoryPage(ctk.CTkFrame):
         # Configure main grid with better weight distribution
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=0)  # Header
-        self.grid_rowconfigure(1, weight=0)  # Stats
-        self.grid_rowconfigure(2, weight=0)  # Content header
-        self.grid_rowconfigure(3, weight=1)  # Scrollable content
-        self.grid_rowconfigure(4, weight=0)  # Footer
+        self.grid_rowconfigure(1, weight=0)  # Stats (includes "Recent Analyses" text)
+        self.grid_rowconfigure(2, weight=1)  # Scrollable content
+        self.grid_rowconfigure(3, weight=0)  # Footer
         
         # Header section
         self._create_header()
@@ -129,7 +128,7 @@ class HistoryPage(ctk.CTkFrame):
     def _create_stats_section(self):
         """Create statistics cards section"""
         self.stats_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.stats_frame.grid(row=1, column=0, sticky="ew", padx=24, pady=(16, 20))
+        self.stats_frame.grid(row=1, column=0, sticky="ew", padx=24, pady=(16, 0))
         self.stats_frame.grid_columnconfigure((0, 1, 2), weight=1)
         
         # Total analyses card
@@ -158,6 +157,15 @@ class HistoryPage(ctk.CTkFrame):
             "Most recent session"
         )
         self.latest_card.grid(row=0, column=2, sticky="ew", padx=(8, 0))
+        
+        # Add "Recent Analyses" header directly below stats cards
+        self.content_title = ctk.CTkLabel(
+            self.stats_frame,
+            text="Recent Analyses",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color=ThemeManager.GRAY_DARK
+        )
+        self.content_title.grid(row=1, column=0, sticky="w", pady=(16, 8), columnspan=3)
         
     def _create_stats_card(self, parent, title, value, subtitle):
         """Create individual statistics card"""
@@ -199,31 +207,14 @@ class HistoryPage(ctk.CTkFrame):
         
     def _create_content_section(self):
         """Create scrollable content section for history items"""
-        # Content header
-        self.content_header = ctk.CTkFrame(self, fg_color="transparent")
-        self.content_header.grid(row=2, column=0, sticky="ew", padx=24, pady=(0, 12))
-        self.content_header.grid_columnconfigure(1, weight=1)
-        
-        self.content_title = ctk.CTkLabel(
-            self.content_header,
-            text="Recent Analyses",
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color=ThemeManager.GRAY_DARK
-        )
-        self.content_title.grid(row=0, column=0, sticky="w")
-        
-        # Filter/search options (placeholder for future enhancement)
-        self.filter_frame = ctk.CTkFrame(self.content_header, fg_color="transparent")
-        self.filter_frame.grid(row=0, column=1, sticky="e")
-        
-        # Scrollable history list with improved spacing
+        # Scrollable history list directly below the "Recent Analyses" header
         self.history_scrollable = ctk.CTkScrollableFrame(
             self,
             fg_color=ThemeManager.SECONDARY_COLOR,
             corner_radius=12,
             border_width=0
         )
-        self.history_scrollable.grid(row=3, column=0, sticky="nsew", padx=24, pady=(0, 20))
+        self.history_scrollable.grid(row=2, column=0, sticky="nsew", padx=24, pady=(0, 20))
         self.history_scrollable.grid_columnconfigure(0, weight=1)
         
         # Add scroll throttling to prevent UI distortion
@@ -238,7 +229,7 @@ class HistoryPage(ctk.CTkFrame):
     def _create_footer(self):
         """Create footer with navigation buttons"""
         self.footer_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.footer_frame.grid(row=4, column=0, sticky="ew", padx=24, pady=(12, 20))
+        self.footer_frame.grid(row=3, column=0, sticky="ew", padx=24, pady=(12, 20))
         self.footer_frame.grid_columnconfigure(1, weight=1)
         
         # Clear history button
